@@ -4,12 +4,13 @@ import torch
 import torch.nn.functional as F
 from allennlp_light import ScalarMix
 from allennlp_light.nn.util import sequence_cross_entropy_with_logits
+from tango.common import FromParams
 from torchmetrics import Accuracy
 
 from microbert2.common import dill_dump, dill_load, pool_embeddings
 
 
-class XposHead(torch.nn.Module):
+class XposHead(torch.nn.Module, FromParams):
     def __init__(
         self,
         num_layers: int,

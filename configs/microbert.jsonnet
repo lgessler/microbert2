@@ -37,11 +37,16 @@ local parser = (import 'lib/parser.libsonnet')(
   { type: "ref", ref: "counts", key: "xpos" },
   { type: "ref", ref: "counts", key: "deprel" }
 );
+local tagger = (import 'lib/tagger.libsonnet')(
+  num_layers,
+  hidden_size,
+  { type: "ref", ref: "counts", key: "xpos" },
+);
 
 local model = {
     type: "microbert2.microbert.model.model::microbert_model",
+    tagger: if use_xpos then tagger else null,
     parser: if use_parser then parser else null,
-    xpos_tagging: use_xpos,
     tokenizer: tokenizer,
     counts: { "type": "ref", "ref": "counts" },
     model_output_path: model_path,
@@ -109,7 +114,7 @@ local train_dataloader = {
     batch_size: batch_size,
     collate_fn: collate_fn,
     pin_memory: true,
-    num_workers: 4,
+    num_workers: 2,
     prefetch_factor: 4,
     persistent_workers: true,
 };
@@ -118,7 +123,7 @@ local val_dataloader = {
     batch_size: batch_size,
     collate_fn: collate_fn,
     pin_memory: true,
-    num_workers: 4,
+    num_workers: 2,
     prefetch_factor: 4,
     persistent_workers: true,
 };

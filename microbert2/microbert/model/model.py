@@ -45,7 +45,7 @@ class MicroBERTModel(Model):
         self,
         encoder: MicroBERTEncoder,
         counts: Dict[str, int],
-        xpos_tagging: bool = True,
+        tagger: Optional[XposHead] = None,
         parser: Optional[BiaffineDependencyParser] = None,
         *args,
         **kwargs,
@@ -62,13 +62,12 @@ class MicroBERTModel(Model):
         """
         super().__init__()
         self.counts = counts
-        self.xpos_tagging = xpos_tagging
 
         # a BERT-style Transformer encoder stack
         self.encoder = encoder
 
-        if xpos_tagging:
-            self.xpos_head = XposHead(encoder.config.num_hidden_layers + 1, encoder.config.hidden_size, counts["xpos"])
+        self.tagger = tagger
+        if tagger is not None:
             logger.info("xpos tagging head initialized")
         self.parser = parser
         if parser is not None:
@@ -124,14 +123,14 @@ class MicroBERTModel(Model):
             outputs["progress_items"]["perplexity"] = head_loss["mlm"].exp().item()
 
             # XPOS loss
-            if self.xpos_tagging:
-                xpos_outputs = self.xpos_head(encoder_outputs.hidden_states, token_spans, tree_is_gold, xpos)
+            num_gold = tree_is_gold.sum().item()
+            if self.tagger is not None and num_gold > 0:
+                xpos_outputs = self.tagger(encoder_outputs.hidden_states, token_spans, tree_is_gold, xpos)
                 loss += xpos_outputs["loss"]
                 outputs["progress_items"]["xpos_acc"] = xpos_outputs["accuracy"].item()
                 outputs["progress_items"]["xpos_loss"] = xpos_outputs["loss"].item()
 
             # parser loss
-            num_gold = tree_is_gold.sum().item()
             if self.parser is not None and num_gold > 0:
                 trimmed = [_remove_cls_and_sep(h_layer, token_spans) for h_layer in encoder_outputs.hidden_states]
                 parser_output = self.parser.forward(
