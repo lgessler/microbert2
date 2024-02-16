@@ -1,0 +1,3 @@
+#!/bin/sh
+isort -l 120 microbert2
+black -l 120 microbert2
