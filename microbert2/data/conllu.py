@@ -49,6 +49,60 @@ class StreamingReadTextOnly(Step):
         return DatasetDict({"train": train_dataset, "dev": dev_dataset})
 
 
+@Step.register("microbert2.data.conllu::read_conllu")
+class ReadConllu(Step):
+    DETERMINISTIC = True
+    CACHEABLE = True
+    FORMAT = DatasetsFormat()
+
+    def run(
+        self,
+        train_path: str,
+        dev_path: str,
+    ) -> DatasetDict:
+        features = datasets.Features(
+            {
+                "tokens": Sequence(feature=Value(dtype="string", id=None), length=-1, id=None),
+                "xpos": Sequence(feature=Value(dtype="string", id=None), length=-1, id=None),
+                "head": Sequence(feature=Value(dtype="string", id=None), length=-1, id=None),
+                "deprel": Sequence(feature=Value(dtype="string", id=None), length=-1, id=None),
+            }
+        )
+
+        def tokenlist_to_record(tl: conllu.TokenList):
+            tokens = []
+            xpos = []
+            head = []
+            deprel = []
+            for t in tl:
+                if isinstance(t["id"], int):
+                    tokens.append(t["form"])
+                    xpos.append(t["xpos"])
+                    head.append(t["head"])
+                    deprel.append(t["deprel"])
+            return {
+                "tokens": tokens,
+                "xpos": xpos,
+                "head": head,
+                "deprel": deprel,
+            }
+
+        def generator(filepath):
+            def inner():
+                with open(filepath, "r") as f:
+                    for x in conllu.parse_incr(f):
+                        yield tokenlist_to_record(x)
+
+            return inner
+
+        train_dataset = datasets.Dataset.from_generator(generator(train_path), features=features)
+        dev_dataset = datasets.Dataset.from_generator(generator(dev_path), features=features)
+        self.logger.info(f"First train sentence: {train_dataset[0]}")
+        self.logger.info(f"First dev sentence: {dev_dataset[0]}")
+
+        return DatasetDict({"train": train_dataset, "dev": dev_dataset})
+
+
 @Step.register("microbert2.data.conllu::read_text_only_conllu")
 class ReadTextOnlyConllu(Step):
     DETERMINISTIC = True
@@ -148,60 +202,6 @@ class ReadTextOnlyConllu(Step):
             features=datasets.Features({"tokens": datasets.Sequence(datasets.Value(dtype="string"))}),
         )
 
-        self.logger.info(f"First train sentence: {train_dataset[0]}")
-        self.logger.info(f"First dev sentence: {dev_dataset[0]}")
-
-        return DatasetDict({"train": train_dataset, "dev": dev_dataset})
-
-
-@Step.register("microbert2.data.conllu::read_conllu")
-class ReadConllu(Step):
-    DETERMINISTIC = True
-    CACHEABLE = True
-    FORMAT = DatasetsFormat()
-
-    def run(
-        self,
-        train_path: str,
-        dev_path: str,
-    ) -> DatasetDict:
-        features = datasets.Features(
-            {
-                "tokens": Sequence(feature=Value(dtype="string", id=None), length=-1, id=None),
-                "xpos": Sequence(feature=Value(dtype="string", id=None), length=-1, id=None),
-                "head": Sequence(feature=Value(dtype="string", id=None), length=-1, id=None),
-                "deprel": Sequence(feature=Value(dtype="string", id=None), length=-1, id=None),
-            }
-        )
-
-        def tokenlist_to_record(tl: conllu.TokenList):
-            tokens = []
-            xpos = []
-            head = []
-            deprel = []
-            for t in tl:
-                if isinstance(t["id"], int):
-                    tokens.append(t["form"])
-                    xpos.append(t["xpos"])
-                    head.append(t["head"])
-                    deprel.append(t["deprel"])
-            return {
-                "tokens": tokens,
-                "xpos": xpos,
-                "head": head,
-                "deprel": deprel,
-            }
-
-        def generator(filepath):
-            def inner():
-                with open(filepath, "r") as f:
-                    for x in conllu.parse_incr(f):
-                        yield tokenlist_to_record(x)
-
-            return inner
-
-        train_dataset = datasets.Dataset.from_generator(generator(train_path), features=features)
-        dev_dataset = datasets.Dataset.from_generator(generator(dev_path), features=features)
         self.logger.info(f"First train sentence: {train_dataset[0]}")
         self.logger.info(f"First dev sentence: {dev_dataset[0]}")
 
