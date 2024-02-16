@@ -62,7 +62,7 @@ class AutoModelForSequenceClassificationWrapper(AutoModelForSequenceClassificati
         def forward(self, *args, **kwargs):
             output = model_class.forward(self, *args, **kwargs)
             labels = kwargs.pop("labels")
-            acc = Accuracy().to(model.device)
+            acc = Accuracy("multiclass", num_classes=len(labels)).to(model.device)
             if labels is not None:
                 preds = output.logits.max(1).indices.to(model.device)
                 labels = labels.to(model.device)
