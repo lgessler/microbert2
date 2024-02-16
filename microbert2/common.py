@@ -1,6 +1,7 @@
 """
 Some functions with broad application, mostly for manipulating tensors. These are in large part taken from AllenNLP.
 """
+
 from typing import Literal, Optional, Tuple
 
 import dill

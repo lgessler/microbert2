@@ -77,7 +77,7 @@ def generate_sla_mask(config: SlaConfig, head: torch.LongTensor, head_length: to
     return transformed_mask
 
 
-LARGE_NEGATIVE_FLOAT = -1.e6
+LARGE_NEGATIVE_FLOAT = -1.0e6
 
 
 def transform_sla_mask(mask):

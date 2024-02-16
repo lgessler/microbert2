@@ -14,8 +14,13 @@ from allennlp_light.modules import FeedForward, InputVariationalDropout, Seq2Seq
 from allennlp_light.modules.matrix_attention.bilinear_matrix_attention import BilinearMatrixAttention
 from allennlp_light.nn import Activation, InitializerApplicator
 from allennlp_light.nn.chu_liu_edmonds import decode_mst
-from allennlp_light.nn.util import (get_device_of, get_lengths_from_binary_sequence_mask, get_range_vector,
-                                    get_text_field_mask, masked_log_softmax)
+from allennlp_light.nn.util import (
+    get_device_of,
+    get_lengths_from_binary_sequence_mask,
+    get_range_vector,
+    get_text_field_mask,
+    masked_log_softmax,
+)
 from tango.common import FromParams
 from torch.nn import Embedding
 from torch.nn.modules import Dropout
