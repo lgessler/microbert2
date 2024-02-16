@@ -131,16 +131,9 @@ class MicroBERTModel(Model):
                 outputs["progress_items"]["xpos_loss"] = xpos_outputs["loss"].item()
 
             # parser loss
-            if self.parser is not None and tree_is_gold.sum().item() > 0:
-                B, S, H = encoder_outputs.last_hidden_state.shape
-                trimmed = [
-                    h_layer.masked_select(tree_is_gold.bool()).reshape((-1, S, H))
-                    for h_layer in encoder_outputs.hidden_states
-                ]
-                trimmed = [_remove_cls_and_sep(h_layer, token_spans) for h_layer in trimmed]
-                # do not backprop into transformer
-                # trimmed = [(reprs.detach().clone(), word_spans.detach().clone()) for reprs, word_spans in trimmed]
-
+            num_gold = tree_is_gold.sum().item()
+            if self.parser is not None and num_gold > 0:
+                trimmed = [_remove_cls_and_sep(h_layer, token_spans) for h_layer in encoder_outputs.hidden_states]
                 parser_output = self.parser.forward(
                     [x[0] for x in trimmed], trimmed[-1][1], xpos, tree_is_gold, deprel, head
                 )
