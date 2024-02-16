@@ -1,0 +1,7 @@
+workspace: 
+  type: local
+  dir: workspace
+include_package: 
+  - microbert2
+log_level: info
+file_friendly_logging: false

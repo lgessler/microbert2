@@ -1,0 +1,15 @@
+__pycache__
+.idea
+/workspace
+*.swp
+/data/coptic
+/data/indonesian
+/data/greek
+/data/tamil
+/data/maltese
+/data/uyghur
+/data/wolof
+/data/bert
+/data/english
+/data/hqp
+scratch.py
