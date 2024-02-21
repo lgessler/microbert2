@@ -19,20 +19,33 @@ logger = logging.getLogger(__name__)
 
 
 def _remove_cls_and_sep(reprs: torch.Tensor, word_spans: torch.Tensor):
-    batch_size, _, hidden = reprs.shape
+    batch_size, seq_len, hidden = reprs.shape
+    device = reprs.device
 
-    word_spans_mask = torch.ones(word_spans.shape, device=word_spans.device).all(-1).unsqueeze(-1)
-    word_spans_mask[:, 0] = False
-    word_spans_mask[:, -1] = False
+    # Make a mask so that we keep everything except the [CLS] and [SEP]
+    reprs_sep_index = word_spans.max(-1).values.max(-1).values
+    word_spans_sep_index = word_spans.sum(-1).gt(0).sum(-1)
+    reprs_mask = torch.ones((batch_size, seq_len, 1), device=device)
+    word_spans_mask = torch.ones((batch_size, word_spans.shape[1], 1), device=device)
+    # Zero out [CLS]
+    reprs_mask[:, 0] = 0
+    word_spans_mask[:, 0] = 0
+    # Zero out [SEP]
+    for i, j in enumerate(reprs_sep_index):
+        reprs_mask[i, j] = 0
+    reprs_mask = reprs_mask.bool()
+    for i, j in enumerate(word_spans_sep_index):
+        word_spans_mask[i, j] = 0
+    word_spans_mask = word_spans_mask.bool()
 
-    reprs_mask = torch.ones(reprs.shape, device=reprs.device).all(-1).unsqueeze(-1)
-    reprs_mask[:, 0] = False
-    reprs_mask[:, -1] = False
+    new_reprs = reprs.masked_select(reprs_mask)
+    new_reprs = new_reprs.reshape((batch_size, seq_len - 2, hidden))
 
-    reprs = reprs.masked_select(reprs_mask).reshape((batch_size, -1, hidden))
-    word_spans = word_spans.masked_select(word_spans_mask).reshape((batch_size, -1, 2))
-    word_spans = word_spans - 1
-    return reprs, word_spans
+    new_word_spans = word_spans.masked_select(word_spans_mask)
+    new_word_spans = (new_word_spans - 1).clamp_min(0)
+    new_word_spans = new_word_spans.reshape((batch_size, word_spans.shape[1] - 2, 2))
+
+    return new_reprs, new_word_spans
 
 
 @Model.register("microbert2.microbert.model.model::microbert_model")
@@ -109,7 +122,7 @@ class MicroBERTModel(Model):
             outputs = {
                 "progress_items": {
                     "max_cuda_mb": torch.cuda.max_memory_allocated() / 1024**2,
-                    "resident_memory_mb": psutil.Process().memory_info().rss / 1024**2,
+                    # "resident_memory_mb": psutil.Process().memory_info().rss / 1024**2,
                 }
             }
 
