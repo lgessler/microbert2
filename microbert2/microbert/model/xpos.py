@@ -69,7 +69,9 @@ class XposHead(torch.nn.Module, FromParams):
 
         outputs = {"logits": logits, "preds": preds * mask}
         if tags is not None:
-            acc = self.accuracy(preds, tags)
+            flat_preds = preds.masked_select(mask)
+            flat_tags = tags.masked_select(mask)
+            acc = self.accuracy(flat_preds, flat_tags)
             if mask.sum().item() > 0:
                 outputs["loss"] = sequence_cross_entropy_with_logits(logits, tags, mask)
             else:
