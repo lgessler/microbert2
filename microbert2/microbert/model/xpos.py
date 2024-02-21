@@ -34,15 +34,29 @@ class XposHead(torch.nn.Module, FromParams):
         tree_is_gold: torch.LongTensor,
         tags: Optional[torch.LongTensor] = None,
     ) -> Dict[str, torch.Tensor]:
-        tokenwise_hidden_states = [pool_embeddings(h, token_spans) for h in hidden]
-        tokenwise_hidden_states = [x[:, 1 : x.shape[1] - 1] for x in tokenwise_hidden_states]
-        hidden = self.mix(tokenwise_hidden_states) if self.use_layer_mix else tokenwise_hidden_states[-1]
+        # Number of tagged tokens, i.e. excluding special tokens
+        token_counts = token_spans.gt(0).all(-1).sum(-1) - 1
+        no_special_token_spans = torch.clone(token_spans)
+        # Drop [CLS]
+        no_special_token_spans = no_special_token_spans[:, 1:, :]
+        # Zero out [SEP]
+        for i, c in enumerate(token_counts):
+            no_special_token_spans[i, c, :] = 0
+
+        if self.use_layer_mix:
+            tokenwise_hidden_states = [pool_embeddings(h, no_special_token_spans) for h in hidden]
+            # Drop [SEP]
+            hidden = self.mix(tokenwise_hidden_states)[:, :-1, :]
+        else:
+            tokenwise_hidden_states = pool_embeddings(hidden[-1], no_special_token_spans)
+            # Drop [SEP]
+            hidden = tokenwise_hidden_states[:, :-1, :]
         logits = self.linear(hidden)
 
-        token_counts = (~token_spans.eq(0)).all(-1).sum(-1) - 1
+        # Mask out pad tokens
         mask = torch.stack(
             [
-                torch.tensor(([True] * c) + ([False] * (tags.shape[1] - c)), device=token_counts.device)
+                torch.tensor(([True] * c) + ([False] * (token_counts.max().item() - c)), device=token_counts.device)
                 for c in token_counts
             ],
             dim=0,
