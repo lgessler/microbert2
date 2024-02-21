@@ -15,8 +15,8 @@ local stringifyObject(o) = std.join('_', std.objectValues(std.mapWithKey(stringi
 // Model settings
 // --------------------------------------------------------------------------------
 local max_length = 512;
-local use_parser = true;
-local use_xpos = true;
+local use_parser = if std.parseInt(std.extVar("PARSER")) == 0 then false else true;
+local use_tagger = if std.parseInt(std.extVar("TAGGER")) == 0 then false else true;
 
 // For non-pretrained
 local FROM_PRETRAINED = false;
@@ -45,7 +45,7 @@ local tagger = (import 'lib/tagger.libsonnet')(
 
 local model = {
     type: "microbert2.microbert.model.model::microbert_model",
-    tagger: if use_xpos then tagger else null,
+    tagger: if use_tagger then tagger else null,
     parser: if use_parser then parser else null,
     tokenizer: tokenizer,
     counts: { "type": "ref", "ref": "counts" },
@@ -81,7 +81,7 @@ local effective_batch_size = grad_accum * batch_size;
 // same number of training instances because each step goes through `grad_accum` microbatches
 local num_steps = BERT_steps / 16;  // 16 is an extra reduction we're making
 
-local validate_every = 10000;
+local validate_every = 1000;
 
 // --------------------------------------------------------------------------------
 // Optimizer settings
@@ -172,6 +172,7 @@ local val_dataloader = {
             type: "microbert2.microbert.data::finalize",
             dataset: { "type": "ref", "ref": "tokenized_text_data" },
             treebank_dataset: { "type": "ref", "ref": "tokenized_treebank_data" },
+            unlabeled_per_labeled: 8,
         },
 
         // Record label counts
