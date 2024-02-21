@@ -335,7 +335,7 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         """
         input_reprs = [pool_embeddings(l, word_spans) for l in input_reprs]
         input_reprs = self.mix(input_reprs) if self.use_layer_mix else input_reprs[-1]
-        mask = ~word_spans.eq(-1).all(-1)
+        mask = word_spans.gt(0).all(-1)
         mask[:, 0] = True
 
         if pos_tags is not None and self._pos_tag_embedding is not None:
