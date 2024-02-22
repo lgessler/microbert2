@@ -73,7 +73,7 @@ class XposHead(torch.nn.Module, FromParams):
             flat_tags = tags.masked_select(mask)
             acc = self.accuracy(flat_preds, flat_tags)
             if mask.sum().item() > 0:
-                outputs["loss"] = sequence_cross_entropy_with_logits(logits, tags, mask)
+                outputs["loss"] = sequence_cross_entropy_with_logits(logits, tags, mask, average="token")
             else:
                 outputs["loss"] = torch.tensor(0.0, device=preds.device)
             outputs["accuracy"] = acc
