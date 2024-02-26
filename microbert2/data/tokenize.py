@@ -31,7 +31,7 @@ class TokenizePlus(Step):
     ) -> Tuple[List[int], List[Optional[Tuple[int, int]]]]:
         tokens = []
         offsets = []
-        for token_string in string_tokens:
+        for i, token_string in enumerate(string_tokens):
             wordpieces = tokenizer.encode_plus(
                 token_string,
                 add_special_tokens=False,
@@ -43,6 +43,9 @@ class TokenizePlus(Step):
 
             # Stop early if adding this token would exceed our budget
             if len(tokens) + len(wp_ids) > max_wordpieces:
+                self.logger.warning(
+                    f"Stopping at token {i} in sentence with {len(string_tokens)} tokens due to wordpiece limit"
+                )
                 break
 
             if len(wp_ids) > 0:
@@ -81,7 +84,12 @@ class TokenizePlus(Step):
     def _process_split(
         self, split: Dataset, tokenizer: Tokenizer, max_length: Optional[int], token_column: str
     ) -> Dataset:
+        wp_count = 0
+        sentence_count = 0
+        token_count = 0
+
         def inner():
+            nonlocal wp_count, sentence_count, token_count
             for d in split:
                 sentence = d[token_column]
                 wp_ids, token_spans = self.intra_word_tokenize(sentence, tokenizer, max_length)
@@ -96,6 +104,9 @@ class TokenizePlus(Step):
                     "attention_mask": [1] * len(wp_ids),
                     "token_type_ids": [0] * len(wp_ids),
                 }
+                wp_count += len(wp_ids)
+                sentence_count += 1
+                token_count += len(token_spans) - 2
                 yield d
 
         features = datasets.Features(
@@ -108,7 +119,9 @@ class TokenizePlus(Step):
                 "token_type_ids": Sequence(feature=Value(dtype="int32", id=None), length=-1, id=None),
             }
         )
-        return datasets.Dataset.from_generator(inner, features=features)
+        dataset = datasets.Dataset.from_generator(inner, features=features)
+        self.logger.info(f"Split {split}: {sentence_count} sentences, {token_count} tokens, {wp_count} wordpieces.")
+        return dataset
 
     def run(
         self,
