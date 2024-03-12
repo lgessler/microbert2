@@ -158,6 +158,7 @@ class MicroBERTModel(Model):
                 outputs["progress_items"]["rtd_loss"] = head_loss["rtd"].item()
 
             outputs["loss"] = loss
+            outputs["perplexity"] = outputs["progress_items"]["perplexity"]
             return outputs
         else:
             return {}

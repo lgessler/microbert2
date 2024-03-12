@@ -12,7 +12,7 @@ local stringifyObject(o) = std.join('_', std.objectValues(std.mapWithKey(stringi
 // --------------------------------------------------------------------------------
 local max_length = 512;
 local use_parser = false;
-local use_tagger = false;
+local use_tagger = true;
 
 // For non-pretrained
 local hidden_size = 128;
@@ -26,13 +26,18 @@ local bert_config = {
 };
 local model_path = "./workspace/models/" + language + "_" + experiment_name + "_"+ stringifyObject(bert_config);
 local tokenizer = { pretrained_model_name_or_path: model_path };
+local tagger = (import 'lib/tagger.libsonnet')(
+  num_layers,
+  hidden_size,
+  { type: "ref", ref: "counts", key: "xpos" },
+);
 
 local model = {
     type: "microbert2.microbert.model.model::microbert_model",
-    tagger: null,
+    tagger: if use_tagger then tagger else null,
     parser: null,
     tokenizer: tokenizer,
-    counts: null,
+    counts: { "type": "ref", "ref": "counts" },
     model_output_path: model_path,
     encoder: {
         type: "bert",
@@ -140,6 +145,13 @@ local val_dataloader = {
             dataset: { "type": "ref", "ref": "tokenized_text_data" },
             treebank_dataset: null,
             unlabeled_per_labeled: 8,
+        },
+
+        // Record label counts
+        counts: {
+            type: "microbert2.data.util::count_unique_values",
+            dataset: { "type": "ref", "ref": "model_inputs" },
+            keys: ["xpos"],
         },
 
         // Begin training
