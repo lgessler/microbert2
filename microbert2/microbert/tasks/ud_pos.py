@@ -1,10 +1,12 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 
 import torch
 import torch.nn.functional as F
 from allennlp_light import ScalarMix
 from allennlp_light.nn.util import sequence_cross_entropy_with_logits
+from microbert.tasks.task import MicroBERTTask
 from tango.common import FromParams
+from tango.integrations.transformers import Tokenizer
 from torchmetrics import Accuracy
 
 from microbert2.common import dill_dump, dill_load, pool_embeddings
@@ -80,3 +82,28 @@ class XposHead(torch.nn.Module, FromParams):
             self.accuracy.reset()
 
         return outputs
+
+
+@MicroBERTTask.register("microbert2.microbert.tasks.ud_pos.UDPOSTask")
+class UDPOSTask(MicroBERTTask):
+    def __init__(
+        self,
+        head: XposHead,
+        tokenizer: Tokenizer,
+        tag_type: Literal["xpos", "upos"],
+        train_conllu_path: str,
+        dev_conllu_path: str,
+        test_conllu_path: Optional[str] = None,
+    ):
+        self._head = head
+        if tag_type not in ["xpos", "upos"]:
+            raise ValueError('tag_type must be one of "xpos", "upos"')
+        self.tag_type = tag_type
+
+    @property
+    def head(self):
+        return self._head
+
+    @property
+    def data_keys(self):
+        return [self.tag_type]

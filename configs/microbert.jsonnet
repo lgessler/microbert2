@@ -3,7 +3,7 @@
 // --------------------------------------------------------------------------------
 local language = "wolof";
 // Optional, will be used in generated files--set to something descriptive if you'd like.
-local experiment_name = "";
+local experiment_name = "44";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -43,7 +43,7 @@ local bert_config = {
 local batch_size = 64;
 local grad_accum = 8;
 local effective_batch_size = grad_accum * batch_size;
-local num_steps = 1e5;
+local num_steps = 1e4;
 local validate_every = 1000;  // in steps
 
 // Optimizer ----------------------------------------------------------------------
@@ -59,6 +59,8 @@ local lr_scheduler = {
     num_warmup_steps: validate_every,
     num_training_steps: num_steps,
 };
+
+// Tasks --------------------------------------------------------------------------
 
 
 // --------------------------------------------------------------------------------
@@ -133,6 +135,7 @@ local val_dataloader = {
             dataset: { "type": "ref", "ref": "raw_text_data" },
             max_length: max_length,
             tokenizer: tokenizer,
+            step_extra_dependencies: [ {type: "ref", "ref": "tokenizer" } ]
         },
 
         // Merge inputs
