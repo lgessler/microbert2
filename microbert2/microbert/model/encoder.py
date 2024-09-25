@@ -49,9 +49,7 @@ class BertEncoder(MicroBERTEncoder):
     def __init__(self, tokenizer: Tokenizer, bert_config: Dict[str, Any]):
         super().__init__()
         self.pad_id = tokenizer.pad_token_id
-        config = BertConfig(
-            **bert_config, vocab_size=len(tokenizer.get_vocab()), position_embedding_type="relative_key_query"
-        )
+        config = BertConfig(**bert_config, vocab_size=len(tokenizer.get_vocab()))
         logger.info(f"Initializing a new BERT model with config {config}")
         self.config = config
         self.encoder = BertModel(config=config, add_pooling_layer=False)

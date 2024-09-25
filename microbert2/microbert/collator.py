@@ -43,7 +43,7 @@ def torch_mask_tokens(
 
 
 @DataCollator.register("microbert2.microbert.collator::collator")
-class SgclDataCollator(DataCollator):
+class MicroBERTCollator(DataCollator):
     def __init__(
         self,
         tokenizer: Lazy[Tokenizer],

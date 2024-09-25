@@ -2,18 +2,15 @@ import os
 import shutil
 from typing import Iterable, List, Optional, Tuple
 
-import datasets
-from datasets import Dataset, DatasetDict, IterableDatasetDict, Sequence, Value
-from tango import Step
+from tango import DillFormat, Step
 from tango.common import Lazy
-from tango.integrations.datasets import DatasetsFormat
 from tango.integrations.transformers import Tokenizer
 
-from microbert2.tokenizers import train_tokenizer, train_tokenizer_generator
+from microbert2.tokenizers import train_tokenizer
 
 
-@Step.register("microbert2.data.tokenize::tokenize_plus")
-class TokenizePlus(Step):
+@Step.register("microbert2.data.tokenize::subword_tokenize")
+class SubwordTokenize(Step):
     """
     Use a pretrained transformer tokenizer to get inputs necessary for the language model. Also,
     note which wordpieces belong to whole tokens in the original tokenization.
@@ -21,7 +18,7 @@ class TokenizePlus(Step):
 
     DETERMINISTIC = True
     CACHEABLE = True
-    FORMAT = DatasetsFormat()
+    FORMAT = DillFormat()
 
     def _intra_word_tokenize(
         self,
@@ -78,9 +75,7 @@ class TokenizePlus(Step):
         offsets = [(0, 0)] + offsets + [(offsets[-1][1] + 1,) * 2]
         return wp_ids, offsets
 
-    def _process_split(
-        self, split: Dataset, tokenizer: Tokenizer, max_length: Optional[int], token_column: str
-    ) -> Dataset:
+    def _process_split(self, split: list, tokenizer: Tokenizer, max_length: Optional[int], token_column: str) -> list:
         def inner():
             for d in split:
                 sentence = d[token_column]
@@ -98,27 +93,17 @@ class TokenizePlus(Step):
                 }
                 yield d
 
-        features = datasets.Features(
-            {
-                **split.features,
-                token_column: Sequence(feature=Value(dtype="string", id=None), length=-1, id=None),
-                "input_ids": Sequence(feature=Value(dtype="int32", id=None), length=-1, id=None),
-                "token_spans": Sequence(feature=Value(dtype="int32", id=None), length=-1, id=None),
-                "attention_mask": Sequence(feature=Value(dtype="int32", id=None), length=-1, id=None),
-                "token_type_ids": Sequence(feature=Value(dtype="int32", id=None), length=-1, id=None),
-            }
-        )
-        return datasets.Dataset.from_generator(inner, features=features)
+        return [x for x in inner()]
 
     def run(
         self,
-        dataset: IterableDatasetDict,
+        dataset: dict,
         tokenizer: Lazy[Tokenizer],
         max_length: Optional[int] = None,
         token_column: str = "tokens",
-    ) -> DatasetDict:
+    ) -> dict:
         tokenizer = tokenizer.construct()
-        return DatasetDict({k: self._process_split(v, tokenizer, max_length, token_column) for k, v in dataset.items()})
+        return {k: self._process_split(v, tokenizer, max_length, token_column) for k, v in dataset.items()}
 
 
 @Step.register("microbert2.data.tokenize::train_tokenizer")
@@ -127,15 +112,25 @@ class TrainTokenizer(Step):
     CACHEABLE = True
 
     def run(
-        self, dataset: DatasetDict, model_path: str, vocab_size: Optional[int] = None, generator: bool = False
+        self,
+        dataset: dict,
+        model_path: str,
+        vocab_size: Optional[int] = None,
+        lowercase: bool = True,
+        nfd_normalize: bool = True,
+        strip_accents: bool = False,
     ) -> None:
         if os.path.exists(model_path):
-            self.logger.info(f"Already found model at {model_path}. Removing...")
+            self.logger.info(f"Already found model at {model_path}. Remove? [Y/n]")
             shutil.rmtree(model_path)
-        if not generator:
-            sentences = dataset["train"]["tokens"]
-            train_tokenizer([" ".join(s) for s in sentences], model_path, vocab_size=vocab_size)
-        else:
-            train_tokenizer_generator(dataset["train"], vocab_size, model_path)
+        sentences = [x["tokens"] for x in dataset["train"]]
+        train_tokenizer(
+            [" ".join(s) for s in sentences],
+            model_path,
+            vocab_size=vocab_size,
+            lowercase=lowercase,
+            nfd_normalize=nfd_normalize,
+            strip_accents=strip_accents,
+        )
         # simple_train_tokenizer(sentences, model_path)
         self.logger.info(f"Wrote tokenizer to {model_path}")

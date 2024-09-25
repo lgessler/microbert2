@@ -364,8 +364,6 @@ def _train(
     )
 
     writer = SummaryWriter(str(config.work_dir / "tensorboard"))
-    writer.add_text("language", os.environ["LANGUAGE"])
-    writer.add_text("name", os.environ["NAME"])
 
     # Check working directory to see if we should recover from a previous run.
     initial_state: Optional[Dict[str, Any]] = None

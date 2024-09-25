@@ -57,7 +57,6 @@ class MicroBERTModel(Model):
     def __init__(
         self,
         encoder: MicroBERTEncoder,
-        counts: Dict[str, int],
         tagger: Optional[XposHead] = None,
         parser: Optional[BiaffineDependencyParser] = None,
         *args,
@@ -74,7 +73,6 @@ class MicroBERTModel(Model):
             **kwargs:
         """
         super().__init__()
-        self.counts = counts
 
         # a BERT-style Transformer encoder stack
         self.encoder = encoder
@@ -93,14 +91,8 @@ class MicroBERTModel(Model):
         attention_mask,
         token_type_ids,
         token_spans,
-        xpos,
-        head,
-        deprel,
-        tree_is_gold,
         labels=None,
     ):
-        tree_is_gold = tree_is_gold.squeeze(-1)
-
         encoder_outputs: BaseModelOutputWithPoolingAndCrossAttentions = self.encoder(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -134,24 +126,6 @@ class MicroBERTModel(Model):
             outputs["mlm_loss"] = head_loss["mlm"]
             outputs["progress_items"]["mlm_loss"] = head_loss["mlm"]
             outputs["progress_items"]["perplexity"] = head_loss["mlm"].exp().item()
-
-            # XPOS loss
-            num_gold = tree_is_gold.sum().item()
-            if self.tagger is not None and num_gold > 0:
-                xpos_outputs = self.tagger(encoder_outputs.hidden_states, token_spans, tree_is_gold, xpos)
-                loss += xpos_outputs["loss"]
-                outputs["progress_items"]["xpos_acc"] = xpos_outputs["accuracy"].item()
-                outputs["progress_items"]["xpos_loss"] = xpos_outputs["loss"].item()
-
-            # parser loss
-            if self.parser is not None and num_gold > 0:
-                trimmed = [_remove_cls_and_sep(h_layer, token_spans) for h_layer in encoder_outputs.hidden_states]
-                parser_output = self.parser.forward(
-                    [x[0] for x in trimmed], trimmed[-1][1], xpos, tree_is_gold, deprel, head
-                )
-                loss += parser_output["loss"]
-                outputs["progress_items"]["arc_loss"] = parser_output["arc_loss"].item()
-                outputs["progress_items"]["tag_loss"] = parser_output["tag_loss"].item()
 
             # Replaced token detection loss for electra (if using)
             if "rtd" in head_loss:
