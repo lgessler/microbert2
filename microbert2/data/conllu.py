@@ -14,41 +14,6 @@ from tango.common import Tqdm
 from tango.integrations.datasets import DatasetsFormat
 
 
-@Step.register("microbert2.data.conllu::streaming_read_text_only")
-class StreamingReadTextOnly(Step):
-    DETERMINISTIC = True
-    CACHEABLE = True
-    FORMAT = DatasetsFormat()
-
-    def run(
-        self,
-        shortcut: Optional[str] = None,
-        text_path_train: Optional[str] = None,
-        text_path_dev: Optional[str] = None,
-    ) -> DatasetDict:
-        def read_text(path):
-            def inner():
-                with open(path, "r") as f:
-                    for line in f:
-                        yield {"tokens": [t for t in line.strip().split(" ") if len(t) > 0 and not t.isspace()]}
-
-            return inner
-
-        train_dataset = datasets.Dataset.from_generator(
-            read_text(text_path_train),
-            features=datasets.Features({"tokens": datasets.Sequence(datasets.Value(dtype="string"))}),
-        )
-        dev_dataset = datasets.Dataset.from_generator(
-            read_text(text_path_dev),
-            features=datasets.Features({"tokens": datasets.Sequence(datasets.Value(dtype="string"))}),
-        )
-
-        self.logger.info(f"First train sentence: {train_dataset[0]}")
-        self.logger.info(f"First dev sentence: {dev_dataset[0]}")
-
-        return DatasetDict({"train": train_dataset, "dev": dev_dataset})
-
-
 @Step.register("microbert2.data.conllu::read_conllu")
 class ReadConllu(Step):
     DETERMINISTIC = True
