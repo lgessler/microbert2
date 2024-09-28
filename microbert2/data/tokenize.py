@@ -81,7 +81,7 @@ class SubwordTokenize(Step):
     def _process_split(
         self, split: list, split_name: str, task_slug: str, tokenizer: Tokenizer, max_length: Optional[int]
     ) -> list:
-        sample = pprint.pformat(random.choice(split), indent=4, width=120)
+        sample = pprint.pformat(random.choice(split), indent=4, width=120, compact=True)
         self.logger.info(f"Sample inst from {task_slug}_{split_name}:\n\n\t{sample}\n")
 
         def inner():
