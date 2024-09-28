@@ -5,7 +5,8 @@ import torch
 import torch.nn.functional as F
 from allennlp_light import ScalarMix
 from allennlp_light.nn.util import sequence_cross_entropy_with_logits
-from tango.common import FromParams, Lazy
+from tango.common import FromParams, Lazy, det_hash
+from tango.common.det_hash import CustomDetHash
 from tango.integrations.transformers import Tokenizer
 from torch.nn.utils.rnn import pad_sequence
 from torchmetrics import Accuracy
@@ -20,11 +21,13 @@ class XposHead(torch.nn.Module, FromParams):
         num_layers: int,
         embedding_dim: int,
         num_tags: int,
+        layer_index: int = -1,
         use_layer_mix: bool = True,
     ):
         super().__init__()
         self.linear = torch.nn.Linear(embedding_dim, num_tags)
         self.accuracy = Accuracy(num_classes=num_tags, task="multiclass", top_k=1)
+        self.layer_index = layer_index
         self.use_layer_mix = use_layer_mix
         if self.use_layer_mix:
             self.mix = ScalarMix(num_layers)
@@ -53,7 +56,7 @@ class XposHead(torch.nn.Module, FromParams):
             # Drop [SEP]
             hidden = self.mix(tokenwise_hidden_states)[:, :-1, :]
         else:
-            tokenwise_hidden_states = pool_embeddings(hidden[-1], no_special_token_spans)
+            tokenwise_hidden_states = pool_embeddings(hidden[self.layer_index], no_special_token_spans)
             # Drop [SEP]
             hidden = tokenwise_hidden_states[:, :-1, :]
         logits = self.linear(hidden)
@@ -96,7 +99,7 @@ def read_split(path, pos_column):
 
 
 @MicroBERTTask.register("microbert2.microbert.tasks.ud_pos.UDPOSTask")
-class UDPOSTask(MicroBERTTask):
+class UDPOSTask(MicroBERTTask, CustomDetHash):
     def __init__(
         self,
         head: Lazy[XposHead],
@@ -119,6 +122,12 @@ class UDPOSTask(MicroBERTTask):
         tag_set = set(l for x in self._dataset["train"] + self._dataset["dev"] for l in x["pos_label"])
         self._tags = {v: i for i, v in enumerate(sorted(list(tag_set)))}
         self._head = head.construct(num_tags=len(tag_set))
+        self._hash_string = (
+            train_conllu_path + dev_conllu_path + (test_conllu_path if test_conllu_path else "") + tag_type + self.slug
+        )
+
+    def det_hash_object(self) -> Any:
+        return det_hash(self._hash_string)
 
     @property
     def slug(self):

@@ -25,6 +25,7 @@ def write_vocab(tokenizer: Tokenizer, serialization_dir: str):
     words = "\n".join([w for w, _ in vocab]) + "\n"
     with open(os.path.join(serialization_dir, "vocab.txt"), "w") as f:
         f.write(words)
+        f.flush()
     logger.info("Wrote vocab to" + serialization_dir)
 
 
@@ -88,17 +89,17 @@ def train_tokenizer(
 
     trainer = trainers[tokenization_type](vocab_size=vocab_size, special_tokens=special_tokens)
     tokenizer.train_from_iterator(sentences, trainer=trainer)
+    full_tokenizer = BertTokenizerFast(
+        tokenizer_object=tokenizer,
+        cls_token=cls_token,
+        sep_token=sep_token,
+        unk_token=unk_token,
+        pad_token=pad_token,
+        mask_token=mask_token,
+        bos_token=cls_token,
+        eos_token=sep_token,
+    )
     if serialize_path:
-        full_tokenizer = BertTokenizerFast(
-            tokenizer_object=tokenizer,
-            cls_token=cls_token,
-            sep_token=sep_token,
-            unk_token=unk_token,
-            pad_token=pad_token,
-            mask_token=mask_token,
-            bos_token=cls_token,
-            eos_token=sep_token,
-        )
         full_tokenizer.save_pretrained(serialize_path)
         write_vocab(tokenizer, serialize_path)
-    return tokenizer
+    return full_tokenizer

@@ -22,7 +22,8 @@ from allennlp_light.nn.util import (
     get_text_field_mask,
     masked_log_softmax,
 )
-from tango.common import FromParams, Lazy
+from tango.common import FromParams, Lazy, det_hash
+from tango.common.det_hash import CustomDetHash
 from torch.nn import Embedding
 from torch.nn.modules import Dropout
 from torch.nn.utils.rnn import pad_sequence
@@ -226,6 +227,7 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         use_mst_decoding_for_validation: bool = True,
         dropout: float = 0.0,
         input_dropout: float = 0.0,
+        layer_index: int = -1,
         use_layer_mix: bool = False,
         initializer: InitializerApplicator = InitializerApplicator(),
     ) -> None:
@@ -278,6 +280,7 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         self._attachment_scores = AttachmentScores()
         self._pos_to_ignore = []
 
+        self.layer_index = layer_index
         self.use_layer_mix = use_layer_mix
         if use_layer_mix:
             self.mix = ScalarMix(num_layers)
@@ -336,14 +339,17 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         # Remove unneeded padding
         token_spans = token_spans[:, : xpos.shape[-1] + 2]
 
-        # Remove CLS and SEP
-        trimmed = [remove_cls_and_sep(h_layer, token_spans) for h_layer in hidden]
-        hidden = [h_layer for h_layer, _ in trimmed]
-        token_spans = trimmed[-1][1]
-
-        # Pool wordpieces together into original token reprs
-        input_reprs = [pool_embeddings(l, token_spans) for l in hidden]
-        input_reprs = self.mix(input_reprs) if self.use_layer_mix else input_reprs[-1]
+        if self.use_layer_mix:
+            # Remove CLS and SEP
+            trimmed = [remove_cls_and_sep(h_layer, token_spans) for h_layer in hidden]
+            hidden = [h_layer for h_layer, _ in trimmed]
+            token_spans = trimmed[-1][1]
+            # Pool wordpieces together into original token reprs
+            input_reprs = [pool_embeddings(l, token_spans) for l in hidden]
+            input_reprs = self.mix(input_reprs)
+        else:
+            hidden, token_spans = remove_cls_and_sep(hidden[self.layer_index], token_spans)
+            input_reprs = pool_embeddings(hidden, token_spans)
         mask = token_spans.gt(0).all(-1)
         mask[:, 0] = True
 
@@ -382,6 +388,7 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
                 evaluation_mask,
             )
             output_dict["las"] = self._attachment_scores.get_metric(True)["LAS"]
+            output_dict["uas"] = self._attachment_scores.get_metric(True)["UAS"]
 
         return output_dict
 
@@ -768,7 +775,7 @@ def read_split(path):
 
 
 @MicroBERTTask.register("microbert2.microbert.tasks.ud_pos.UDParseTask")
-class UDParseTask(MicroBERTTask):
+class UDParseTask(MicroBERTTask, CustomDetHash):
     def __init__(
         self,
         head: Lazy[BiaffineDependencyParser],
@@ -792,6 +799,12 @@ class UDParseTask(MicroBERTTask):
         self._rels = {v: i for i, v in enumerate(sorted(list(relation_set)))}
         self._tags = {v: i for i, v in enumerate(sorted(list(xpos_set)))}
         self._head = head
+        self._hash_string = (
+            train_conllu_path + dev_conllu_path + (test_conllu_path if test_conllu_path else "") + self.slug
+        )
+
+    def det_hash_object(self) -> Any:
+        return det_hash(self._hash_string)
 
     @property
     def slug(self):

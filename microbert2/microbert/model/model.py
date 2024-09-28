@@ -58,7 +58,7 @@ class MicroBERTModel(Model):
     def __init__(
         self,
         encoder: MicroBERTEncoder,
-        tasks: list[MicroBERTTask] = [],
+        tasks: tuple[MicroBERTTask] = (),
         *args,
         **kwargs,
     ):
