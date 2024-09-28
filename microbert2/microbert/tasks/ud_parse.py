@@ -28,7 +28,7 @@ from torch.nn import Embedding
 from torch.nn.modules import Dropout
 from torch.nn.utils.rnn import pad_sequence
 
-from microbert2.common import pool_embeddings
+from microbert2.common import dill_dump, pool_embeddings
 from microbert2.microbert.model.model import remove_cls_and_sep
 from microbert2.microbert.tasks.task import MicroBERTTask
 
@@ -92,7 +92,6 @@ class AttachmentScores:
         """
         detached = self.detach_tensors(predicted_indices, predicted_labels, gold_indices, gold_labels, mask)
         predicted_indices, predicted_labels, gold_indices, gold_labels, mask = detached
-
         if mask is None:
             mask = torch.ones_like(predicted_indices).bool()
 
@@ -383,12 +382,13 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
             self._attachment_scores(
                 predicted_heads[:, 1:],
                 predicted_head_tags[:, 1:],
-                deprel,
                 head,
+                deprel,
                 evaluation_mask,
             )
-            output_dict["las"] = self._attachment_scores.get_metric(True)["LAS"]
-            output_dict["uas"] = self._attachment_scores.get_metric(True)["UAS"]
+            metrics = self._attachment_scores.get_metric(True)
+            output_dict["las"] = metrics["LAS"] * 100
+            output_dict["uas"] = metrics["UAS"] * 100
 
         return output_dict
 

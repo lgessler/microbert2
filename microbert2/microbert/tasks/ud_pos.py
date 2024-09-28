@@ -79,7 +79,7 @@ class XposHead(torch.nn.Module, FromParams):
             flat_tags = pos_label.masked_select(mask)
             acc = self.accuracy(flat_preds, flat_tags)
             outputs["loss"] = sequence_cross_entropy_with_logits(logits, pos_label, mask, average="token")
-            outputs["accuracy"] = acc
+            outputs["accuracy"] = acc * 100
             self.accuracy.reset()
 
         return outputs
