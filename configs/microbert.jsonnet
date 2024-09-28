@@ -23,6 +23,9 @@ local vocab_size = 10000;
 // Data ---------------------------------------------------------------------------
 local whitespace_tokenized_text_path_train = "data/wolof/converted_punct/train/train.txt";
 local whitespace_tokenized_text_path_dev = "data/wolof/converted_punct/dev/dev.txt";
+local train_conllu_path = "data/wolof/UD_Wolof-WTB/wo_wtb-ud-train.conllu";
+local dev_conllu_path = "data/wolof/UD_Wolof-WTB/wo_wtb-ud-dev.conllu";
+local test_conllu_path = "data/wolof/UD_Wolof-WTB/wo_wtb-ud-test.conllu";
 
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
@@ -61,6 +64,19 @@ local lr_scheduler = {
 };
 
 // Tasks --------------------------------------------------------------------------
+local pos_task = {
+    type: "microbert2.microbert.tasks.ud_pos.UDPOSTask",
+    head: {
+        num_layers: num_layers,
+        embedding_dim: hidden_size,
+        use_layer_mix: false,
+    },
+    tag_type: "xpos",
+    train_conllu_path: train_conllu_path,
+    dev_conllu_path: dev_conllu_path,
+    test_conllu_path: test_conllu_path,
+};
+local tasks = [pos_task];
 
 
 // --------------------------------------------------------------------------------
@@ -75,6 +91,7 @@ local model = {
     type: "microbert2.microbert.model.model::microbert_model",
     tokenizer: tokenizer,
     model_output_path: model_path,
+    tasks: tasks,
     encoder: {
         type: "bert",
         tokenizer: tokenizer,
@@ -90,10 +107,11 @@ local training_engine = {
 };
 
 local collate_fn = {
-    type: "microbert2.microbert.collator::collator",
+    type: "microbert2.data.collator::collator",
     tokenizer: tokenizer,
     // whether to replace [MASK] with 10% UNK and 10% random. should be true for electra, false for bert
     mask_only: false,
+    tasks: tasks,
 };
 local train_dataloader = {
     shuffle: true,
@@ -128,27 +146,23 @@ local val_dataloader = {
             type: "microbert2.data.tokenize::train_tokenizer",
             dataset: { "type": "ref", "ref": "raw_text_data" },
             vocab_size: vocab_size,
-            model_path: model_path
+            model_path: model_path,
+            tasks: tasks,
         },
         tokenized_text_data: {
             type: "microbert2.data.tokenize::subword_tokenize",
             dataset: { "type": "ref", "ref": "raw_text_data" },
             max_length: max_length,
             tokenizer: tokenizer,
-            step_extra_dependencies: [ {type: "ref", "ref": "tokenizer" } ]
+            tasks: tasks,
         },
 
         // Merge inputs
         model_inputs: {
-            type: "microbert2.microbert.data::combine_datasets",
-            dataset: { "type": "ref", "ref": "tokenized_text_data" },
+            type: "microbert2.data.combine::combine_datasets",
+            datasets: { "type": "ref", "ref": "tokenized_text_data" },
+            tasks: tasks,
         },
-        // // Record label counts
-        // counts: {
-        //     type: "microbert2.data.util::count_unique_values",
-        //     dataset: { "type": "ref", "ref": "model_inputs" },
-        //     keys: ["xpos", "deprel"],
-        // },
 
         // Begin training
         trained_model: {

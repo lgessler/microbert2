@@ -1,11 +1,12 @@
 import os
 import shutil
-from typing import Iterable, List, Optional, Tuple
+from typing import Any, Iterable, List, Literal, Optional, Tuple
 
 from tango import DillFormat, Step
-from tango.common import Lazy
+from tango.common import Lazy, Tqdm
 from tango.integrations.transformers import Tokenizer
 
+from microbert2.microbert.tasks.task import MicroBERTTask
 from microbert2.tokenizers import train_tokenizer
 
 
@@ -75,10 +76,12 @@ class SubwordTokenize(Step):
         offsets = [(0, 0)] + offsets + [(offsets[-1][1] + 1,) * 2]
         return wp_ids, offsets
 
-    def _process_split(self, split: list, tokenizer: Tokenizer, max_length: Optional[int], token_column: str) -> list:
+    def _process_split(
+        self, split: list, split_name: str, task_slug: str, tokenizer: Tokenizer, max_length: Optional[int]
+    ) -> list:
         def inner():
-            for d in split:
-                sentence = d[token_column]
+            for d in Tqdm.tqdm(split, desc=f"Tokenizing {task_slug} ({split_name})"):
+                sentence = d["tokens"]
                 wp_ids, token_spans = self.intra_word_tokenize(sentence, tokenizer, max_length)
                 flattened = []
                 for pair in token_spans:
@@ -87,7 +90,8 @@ class SubwordTokenize(Step):
                     **d,
                     "input_ids": wp_ids,
                     "token_spans": flattened,
-                    token_column: sentence[: len(token_spans) - 2],
+                    # I don't think we need this?
+                    # "tokens": sentence[: len(token_spans) - 2],
                     "attention_mask": [1] * len(wp_ids),
                     "token_type_ids": [0] * len(wp_ids),
                 }
@@ -100,32 +104,46 @@ class SubwordTokenize(Step):
         dataset: dict,
         tokenizer: Lazy[Tokenizer],
         max_length: Optional[int] = None,
-        token_column: str = "tokens",
-    ) -> dict:
+        tasks: list[MicroBERTTask] = [],
+    ) -> list[dict[Literal["train", "dev", "test"], list[dict[str, Any]]]]:
         tokenizer = tokenizer.construct()
-        return {k: self._process_split(v, tokenizer, max_length, token_column) for k, v in dataset.items()}
+        datasets = []
+        mlm_dataset = {k: self._process_split(v, k, "mlm", tokenizer, max_length) for k, v in dataset.items()}
+        datasets.append(mlm_dataset)
+        for task in tasks:
+            task_dataset = {
+                k: self._process_split(v, k, task.slug, tokenizer, max_length) for k, v in task.dataset.items()
+            }
+            datasets.append(task_dataset)
+        return datasets
 
 
 @Step.register("microbert2.data.tokenize::train_tokenizer")
 class TrainTokenizer(Step):
     DETERMINISTIC = True
     CACHEABLE = True
+    FORMAT = DillFormat()
 
     def run(
         self,
         dataset: dict,
         model_path: str,
+        tasks: list[MicroBERTTask] = [],
         vocab_size: Optional[int] = None,
         lowercase: bool = True,
         nfd_normalize: bool = True,
         strip_accents: bool = False,
-    ) -> None:
+    ) -> Tokenizer:
         if os.path.exists(model_path):
-            self.logger.info(f"Already found model at {model_path}. Remove? [Y/n]")
+            self.logger.info(f"Already found model at {model_path}. Removing...")
             shutil.rmtree(model_path)
         sentences = [x["tokens"] for x in dataset["train"]]
-        train_tokenizer(
-            [" ".join(s) for s in sentences],
+        tokens = [" ".join(s) for s in sentences]
+        for task in tasks:
+            for sentence in task.dataset["train"]:
+                tokens.append(" ".join(sentence["tokens"]))
+        tokenizer = train_tokenizer(
+            tokens,
             model_path,
             vocab_size=vocab_size,
             lowercase=lowercase,
@@ -134,3 +152,4 @@ class TrainTokenizer(Step):
         )
         # simple_train_tokenizer(sentences, model_path)
         self.logger.info(f"Wrote tokenizer to {model_path}")
+        return tokenizer

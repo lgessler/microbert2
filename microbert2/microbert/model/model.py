@@ -8,12 +8,12 @@ import psutil
 import torch
 from datasets import DatasetDict
 from tango.integrations.torch import Model, TrainCallback
+from torch import nn
 from transformers.modeling_outputs import BaseModelOutputWithPoolingAndCrossAttentions
 
 from microbert2.common import dill_dump, dill_load
-from microbert2.microbert.model.biaffine_parser import BiaffineDependencyParser
 from microbert2.microbert.model.encoder import MicroBERTEncoder
-from microbert2.microbert.model.xpos import XposHead
+from microbert2.microbert.tasks.task import MicroBERTTask
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +57,7 @@ class MicroBERTModel(Model):
     def __init__(
         self,
         encoder: MicroBERTEncoder,
-        tagger: Optional[XposHead] = None,
-        parser: Optional[BiaffineDependencyParser] = None,
+        tasks: list[MicroBERTTask] = [],
         *args,
         **kwargs,
     ):
@@ -76,13 +75,8 @@ class MicroBERTModel(Model):
 
         # a BERT-style Transformer encoder stack
         self.encoder = encoder
-
-        self.tagger = tagger
-        if tagger is not None:
-            logger.info("xpos tagging head initialized")
-        self.parser = parser
-        if parser is not None:
-            logger.info("dynamic parsing head initialized")
+        self.tasks = tasks
+        self.task_heads = nn.ModuleList([task.head for task in tasks])
 
     def forward(
         self,
@@ -91,7 +85,9 @@ class MicroBERTModel(Model):
         attention_mask,
         token_type_ids,
         token_spans,
+        dataset_id,
         labels=None,
+        **kwargs,
     ):
         encoder_outputs: BaseModelOutputWithPoolingAndCrossAttentions = self.encoder(
             input_ids=input_ids,
@@ -130,6 +126,24 @@ class MicroBERTModel(Model):
             # Replaced token detection loss for electra (if using)
             if "rtd" in head_loss:
                 outputs["progress_items"]["rtd_loss"] = head_loss["rtd"].item()
+
+            i = 1
+            for task in self.tasks:
+                indexes = dataset_id == i
+                if indexes.sum(0).item() == 0:
+                    continue
+                task_args = {}
+                task_args["hidden"] = [h[indexes] for h in encoder_outputs.hidden_states]
+                task_args["hidden_masked"] = [h[indexes] for h in masked_encoder_outputs.hidden_states]
+                task_args["token_spans"] = token_spans[indexes]
+                for k in task.data_keys:
+                    task_args[k] = kwargs[k][indexes]
+                task_outputs = self.task_heads[i - 1](**task_args)
+                for k in task.progress_items:
+                    outputs["progress_items"][task.slug + "_" + k] = task_outputs[k]
+                outputs[task.slug + "_loss"] = task_outputs["loss"]
+                loss += task_outputs["loss"]
+                i += 1
 
             outputs["loss"] = loss
             return outputs

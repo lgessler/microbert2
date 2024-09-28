@@ -7,6 +7,8 @@ from tango.integrations.transformers import Tokenizer
 from torch.nn.utils.rnn import pad_sequence
 from transformers import DataCollatorForLanguageModeling
 
+from microbert2.microbert.tasks.task import MicroBERTTask
+
 
 # copied from HF implementation, but does not do the 10% [UNK] and 10% random word replacement
 def torch_mask_tokens(
@@ -42,39 +44,34 @@ def torch_mask_tokens(
     return inputs, labels
 
 
-@DataCollator.register("microbert2.microbert.collator::collator")
+@DataCollator.register("microbert2.data.collator::collator")
 class MicroBERTCollator(DataCollator):
     def __init__(
         self,
         tokenizer: Lazy[Tokenizer],
+        tasks: list[MicroBERTTask] = [],
         mask_only: bool = False,
-        text_field: str = "input_ids",
-        span_field: str = "token_spans",
     ):
         tokenizer = tokenizer.construct()
         self.tokenizer = tokenizer
         self.text_pad_id = tokenizer.pad_token_id
-        self.text_field = text_field
-        self.span_field = span_field
         self.mask_only = mask_only
+        self.tasks = tasks
         if not mask_only:
             self.mlm_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm_probability=0.15)
-        self.keys = None
 
     def __call__(self, batch) -> Dict[str, Any]:
-        if self.keys is None:
-            self.keys = list(batch[0].keys())
-
         output = {}
-        for k in self.keys:
+        output["dataset_id"] = torch.stack([item["dataset_id"] for item in batch], dim=0)
+        for k in ["input_ids", "attention_mask", "token_spans", "token_type_ids"]:
             output[k] = pad_sequence(
                 (item[k] for item in batch),
                 batch_first=True,
-                padding_value=(0 if k != self.text_field else self.text_pad_id),
+                padding_value=(0 if k != "input_ids" else self.text_pad_id),
             )
             if k in ["token_spans"]:
                 output[k] = output[k].view(output[k].shape[0], -1, 2)
-            if k == self.text_field:
+            if k == "input_ids":
                 if not self.mask_only:
                     masked, labels = self.mlm_collator.torch_mask_tokens(output[k])
                 else:
@@ -84,7 +81,9 @@ class MicroBERTCollator(DataCollator):
                         masked, labels = self.mlm_collator.torch_mask_tokens(output[k])
                     else:
                         masked, labels = torch_mask_tokens(output[k], self.tokenizer)
-                output[self.text_field + "_masked"] = masked
+                output["input_ids_masked"] = masked
                 output["labels"] = labels
-
+        for task in self.tasks:
+            for k in task.data_keys:
+                output[k] = task.collate_data(k, [item[k] for item in batch])
         return output
