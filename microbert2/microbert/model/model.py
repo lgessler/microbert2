@@ -58,7 +58,7 @@ class MicroBERTModel(Model):
     def __init__(
         self,
         encoder: MicroBERTEncoder,
-        tasks: tuple[MicroBERTTask] = (),
+        tasks: list[MicroBERTTask] = [],
         *args,
         **kwargs,
     ):
@@ -78,6 +78,7 @@ class MicroBERTModel(Model):
         self.encoder = encoder
         self.tasks = tasks
         self.task_heads = nn.ModuleList([task.head for task in tasks])
+        logger.info(f"Initialized MicroBERT model: {self}")
 
     def forward(
         self,

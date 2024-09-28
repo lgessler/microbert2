@@ -49,7 +49,7 @@ class MicroBERTCollator(DataCollator):
     def __init__(
         self,
         tokenizer: Lazy[Tokenizer],
-        tasks: tuple[MicroBERTTask] = (),
+        tasks: list[MicroBERTTask] = [],
         mask_only: bool = False,
     ):
         tokenizer = tokenizer.construct()

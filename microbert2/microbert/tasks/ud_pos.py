@@ -123,7 +123,7 @@ class UDPOSTask(MicroBERTTask, CustomDetHash):
         self._tags = {v: i for i, v in enumerate(sorted(list(tag_set)))}
         self._head = head
         self._hash_string = (
-            train_conllu_path + dev_conllu_path + (test_conllu_path if test_conllu_path else "") + tag_type + self.slug
+            self.slug + tag_type + train_conllu_path + dev_conllu_path + (test_conllu_path if test_conllu_path else "")
         )
 
     def det_hash_object(self) -> Any:

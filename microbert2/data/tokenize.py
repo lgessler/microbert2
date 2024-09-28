@@ -104,7 +104,7 @@ class SubwordTokenize(Step):
         dataset: dict,
         tokenizer: Tokenizer,
         max_length: Optional[int] = None,
-        tasks: tuple[MicroBERTTask] = (),
+        tasks: list[MicroBERTTask] = [],
     ) -> list[dict[Literal["train", "dev", "test"], list[dict[str, Any]]]]:
         datasets = []
         mlm_dataset = {k: self._process_split(v, k, "mlm", tokenizer, max_length) for k, v in dataset.items()}
@@ -127,7 +127,7 @@ class TrainTokenizer(Step):
         self,
         dataset: dict,
         model_path: str,
-        tasks: tuple[MicroBERTTask] = (),
+        tasks: list[MicroBERTTask] = [],
         vocab_size: Optional[int] = None,
         lowercase: bool = True,
         nfd_normalize: bool = True,

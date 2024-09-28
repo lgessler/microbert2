@@ -36,7 +36,7 @@ class CombineDatasets(Step):
     def run(
         self,
         datasets: list[dict],
-        tasks: tuple[MicroBERTTask] = (),
+        tasks: list[MicroBERTTask] = [],
     ) -> dict:
 
         base_inst = {}

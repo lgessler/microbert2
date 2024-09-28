@@ -774,7 +774,7 @@ def read_split(path):
     return result
 
 
-@MicroBERTTask.register("microbert2.microbert.tasks.ud_pos.UDParseTask")
+@MicroBERTTask.register("microbert2.microbert.tasks.ud_parse.UDParseTask")
 class UDParseTask(MicroBERTTask, CustomDetHash):
     def __init__(
         self,
@@ -800,7 +800,7 @@ class UDParseTask(MicroBERTTask, CustomDetHash):
         self._tags = {v: i for i, v in enumerate(sorted(list(xpos_set)))}
         self._head = head
         self._hash_string = (
-            train_conllu_path + dev_conllu_path + (test_conllu_path if test_conllu_path else "") + self.slug
+            self.slug + train_conllu_path + dev_conllu_path + (test_conllu_path if test_conllu_path else "")
         )
 
     def det_hash_object(self) -> Any:
@@ -847,4 +847,4 @@ class UDParseTask(MicroBERTTask, CustomDetHash):
 
     @property
     def progress_items(self):
-        return ["loss", "las"]
+        return ["loss", "las", "uas"]
