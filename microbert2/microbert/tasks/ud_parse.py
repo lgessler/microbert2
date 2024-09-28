@@ -370,6 +370,15 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         }
 
         if deprel is not None and head is not None:
+            if self._prev_step_training != self.training:
+                split = "val" if self.training else "train"
+                metrics = self._attachment_scores.get_metric()
+                print()
+                logger.info(f'{split} LAS: {metrics["LAS"] * 100}')
+                logger.info(f'{split} UAS: {metrics["UAS"] * 100}')
+                self._attachment_scores.reset()
+                self._prev_step_training = self.training
+
             evaluation_mask = self._get_mask_for_eval(mask[:, 1:], xpos)
             # We calculate attachment scores for the whole sentence
             # but excluding the symbolic ROOT token at the start,
@@ -384,13 +393,6 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
             metrics = self._attachment_scores.get_metric()
             output_dict["las"] = metrics["LAS"] * 100
             output_dict["uas"] = metrics["UAS"] * 100
-
-            if self._prev_step_training != self.training:
-                split = "val" if self.training else "train"
-                logger.info(f'\n{split} LAS: {output_dict["las"]}')
-                logger.info(f'\n{split} UAS: {output_dict["uas"]}')
-                self._attachment_scores.reset()
-                self._prev_step_training = self.training
 
         return output_dict
 

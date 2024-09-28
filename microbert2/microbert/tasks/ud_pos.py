@@ -80,16 +80,18 @@ class XposHead(torch.nn.Module, FromParams):
         if pos_label is not None:
             flat_preds = preds.masked_select(mask)
             flat_tags = pos_label.masked_select(mask)
+
+            if self._prev_step_training != self.training:
+                split = "val" if self.training else "train"
+                print()
+                logger.info(f'{split} POS accuracy: {self.accuracy.compute() * 100}')
+                self.accuracy.reset()
+                self._prev_step_training = self.training
+
             self.accuracy.update(flat_preds.clone(), flat_tags.clone())
             acc = self.accuracy.compute()
             outputs["loss"] = sequence_cross_entropy_with_logits(logits, pos_label, mask, average="token")
             outputs["accuracy"] = acc * 100
-
-            if self._prev_step_training != self.training:
-                split = "val" if self.training else "train"
-                logger.info(f'\n{split} POS accuracy: {outputs["accuracy"]}')
-                self.accuracy.reset()
-                self._prev_step_training = self.training
 
         return outputs
 
