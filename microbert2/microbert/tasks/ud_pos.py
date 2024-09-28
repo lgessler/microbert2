@@ -121,7 +121,7 @@ class UDPOSTask(MicroBERTTask, CustomDetHash):
         self._proportion = proportion
         tag_set = set(l for x in self._dataset["train"] + self._dataset["dev"] for l in x["pos_label"])
         self._tags = {v: i for i, v in enumerate(sorted(list(tag_set)))}
-        self._head = head.construct(num_tags=len(tag_set))
+        self._head = head
         self._hash_string = (
             train_conllu_path + dev_conllu_path + (test_conllu_path if test_conllu_path else "") + tag_type + self.slug
         )
@@ -135,7 +135,7 @@ class UDPOSTask(MicroBERTTask, CustomDetHash):
 
     @property
     def head(self):
-        return self._head
+        return self._head.construct(num_tags=len(self._tags))
 
     @property
     def data_keys(self):
