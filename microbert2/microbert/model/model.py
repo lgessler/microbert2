@@ -142,7 +142,8 @@ class MicroBERTModel(Model):
                     task_args[k] = kwargs[k][indexes]
                 task_outputs = self.task_heads[i - 1](**task_args)
                 for k in task.progress_items:
-                    outputs["progress_items"][task.slug + "_" + k] = task_outputs[k]
+                    if k in task_outputs:
+                        outputs["progress_items"][task.slug + "_" + k] = task_outputs[k]
                 outputs[task.slug + "_loss"] = task_outputs["loss"]
                 loss += task_outputs["loss"]
                 i += 1
