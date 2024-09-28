@@ -5,8 +5,9 @@ torch
 torchmetrics
 tokenizers
 datasets
-ai2-tango[torch,wandb,transformers]>=1.3.2
+# ai2-tango[torch,wandb,transformers]>=1.3.2
 allennlp-light
+wandb
 
 # other
 conllu
