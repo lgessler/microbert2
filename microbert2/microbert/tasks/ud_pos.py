@@ -84,7 +84,7 @@ class XposHead(torch.nn.Module, FromParams):
             if self._prev_step_training != self.training:
                 split = "val" if self.training else "train"
                 print()
-                logger.info(f'{split} POS accuracy: {self.accuracy.compute() * 100}')
+                logger.info(f"{split} POS accuracy: {self.accuracy.compute() * 100}")
                 self.accuracy.reset()
                 self._prev_step_training = self.training
 
