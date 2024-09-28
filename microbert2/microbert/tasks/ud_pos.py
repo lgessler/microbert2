@@ -1,3 +1,4 @@
+from logging import getLogger
 from typing import Any, Dict, List, Literal, Optional
 
 import conllu
@@ -7,12 +8,13 @@ from allennlp_light import ScalarMix
 from allennlp_light.nn.util import sequence_cross_entropy_with_logits
 from tango.common import FromParams, Lazy, det_hash
 from tango.common.det_hash import CustomDetHash
-from tango.integrations.transformers import Tokenizer
 from torch.nn.utils.rnn import pad_sequence
 from torchmetrics import Accuracy
 
-from microbert2.common import dill_dump, dill_load, pool_embeddings
+from microbert2.common import pool_embeddings
 from microbert2.microbert.tasks.task import MicroBERTTask
+
+logger = getLogger(__name__)
 
 
 class XposHead(torch.nn.Module, FromParams):
@@ -31,6 +33,7 @@ class XposHead(torch.nn.Module, FromParams):
         self.use_layer_mix = use_layer_mix
         if self.use_layer_mix:
             self.mix = ScalarMix(num_layers)
+        self._prev_step_training = True
 
     def forward(
         self,  # type: ignore
@@ -77,10 +80,16 @@ class XposHead(torch.nn.Module, FromParams):
         if pos_label is not None:
             flat_preds = preds.masked_select(mask)
             flat_tags = pos_label.masked_select(mask)
-            acc = self.accuracy(flat_preds, flat_tags)
+            self.accuracy.update(flat_preds.clone(), flat_tags.clone())
+            acc = self.accuracy.compute()
             outputs["loss"] = sequence_cross_entropy_with_logits(logits, pos_label, mask, average="token")
             outputs["accuracy"] = acc * 100
-            self.accuracy.reset()
+
+            if self._prev_step_training != self.training:
+                split = "val" if self.training else "train"
+                logger.info(f'\n{split} POS accuracy: {outputs["accuracy"]}')
+                self.accuracy.reset()
+                self._prev_step_training = self.training
 
         return outputs
 

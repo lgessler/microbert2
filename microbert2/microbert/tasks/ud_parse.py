@@ -15,20 +15,14 @@ from allennlp_light.modules import FeedForward, InputVariationalDropout, Seq2Seq
 from allennlp_light.modules.matrix_attention.bilinear_matrix_attention import BilinearMatrixAttention
 from allennlp_light.nn import Activation, InitializerApplicator
 from allennlp_light.nn.chu_liu_edmonds import decode_mst
-from allennlp_light.nn.util import (
-    get_device_of,
-    get_lengths_from_binary_sequence_mask,
-    get_range_vector,
-    get_text_field_mask,
-    masked_log_softmax,
-)
+from allennlp_light.nn.util import get_device_of, get_range_vector, masked_log_softmax
 from tango.common import FromParams, Lazy, det_hash
 from tango.common.det_hash import CustomDetHash
 from torch.nn import Embedding
 from torch.nn.modules import Dropout
 from torch.nn.utils.rnn import pad_sequence
 
-from microbert2.common import dill_dump, pool_embeddings
+from microbert2.common import pool_embeddings
 from microbert2.microbert.model.model import remove_cls_and_sep
 from microbert2.microbert.tasks.task import MicroBERTTask
 
@@ -56,7 +50,6 @@ class AttachmentScores:
         self._exact_unlabeled_correct = 0.0
         self._total_words = 0.0
         self._total_sentences = 0.0
-
         self._ignore_classes: List[int] = ignore_classes or []
 
     @staticmethod
@@ -229,6 +222,7 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         layer_index: int = -1,
         use_layer_mix: bool = False,
         initializer: InitializerApplicator = InitializerApplicator(),
+        metrics_ignore_tags: list[int] = [],
     ) -> None:
         super().__init__()
         self.encoder = encoder
@@ -276,13 +270,14 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
             )
 
         self.use_mst_decoding_for_validation = use_mst_decoding_for_validation
-        self._attachment_scores = AttachmentScores()
+        self._attachment_scores = AttachmentScores(ignore_classes=metrics_ignore_tags)
         self._pos_to_ignore = []
 
         self.layer_index = layer_index
         self.use_layer_mix = use_layer_mix
         if use_layer_mix:
             self.mix = ScalarMix(num_layers)
+        self._prev_step_training = True
 
         initializer(self)
 
@@ -386,9 +381,16 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
                 deprel,
                 evaluation_mask,
             )
-            metrics = self._attachment_scores.get_metric(True)
+            metrics = self._attachment_scores.get_metric()
             output_dict["las"] = metrics["LAS"] * 100
             output_dict["uas"] = metrics["UAS"] * 100
+
+            if self._prev_step_training != self.training:
+                split = "val" if self.training else "train"
+                logger.info(f'\n{split} LAS: {output_dict["las"]}')
+                logger.info(f'\n{split} UAS: {output_dict["uas"]}')
+                self._attachment_scores.reset()
+                self._prev_step_training = self.training
 
         return output_dict
 
@@ -812,7 +814,11 @@ class UDParseTask(MicroBERTTask, CustomDetHash):
 
     @property
     def head(self):
-        return self._head.construct(num_pos_tags=len(self._tags), num_head_tags=len(self._rels))
+        ignore = [self._rels["punct"]] if "punct" in self._rels else []
+        logger.info(f"deprel ignore list: {ignore}")
+        return self._head.construct(
+            num_pos_tags=len(self._tags), num_head_tags=len(self._rels), metrics_ignore_tags=ignore
+        )
 
     @property
     def data_keys(self):

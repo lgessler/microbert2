@@ -81,7 +81,19 @@ class CombineDatasets(Step):
             i += 1
             task_datasets.append(task_dataset)
 
-        # TODO: print samples from each split
+        word_count = lambda insts: sum(len(inst["token_spans"]) - 2 for inst in insts)
+        wp_count = lambda insts: sum(len(inst["input_ids"]) - 2 for inst in insts)
+        for split, insts in mlm_dataset.items():
+            self.logger.info(
+                f"mlm_{split} size: {len(insts)} sentences, {word_count(insts)} words, {wp_count(insts)} wordpieces"
+            )
+        for i, ds in enumerate(task_datasets):
+            task = tasks[i]
+            for split, insts in ds.items():
+                self.logger.info(
+                    f"{task.slug}_{split} size: {len(insts)} sentences, {word_count(insts)} words, {wp_count(insts)} wordpieces"
+                )
+
         for split in mlm_dataset.keys():
             for task_dataset in task_datasets:
                 mlm_dataset[split] += task_dataset[split]

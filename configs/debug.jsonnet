@@ -1,36 +1,36 @@
 // --------------------------------------------------------------------------------
 // Parameters
 // --------------------------------------------------------------------------------
-local language = "wolof";
+local language = "coptic";
 // Optional, will be used in generated files--set to something descriptive if you'd like.
-local experiment_name = "44";
+local experiment_name = "ebug";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
 // in the quality of your tokenization, or if your language is not supported by Stanza.
-local stanza_retokenize = true;
+local stanza_retokenize = false;
 // Do you want Stanza to look for multi-word tokens? See https://stanfordnlp.github.io/stanza/mwt.html
 // You probably want to keep this at `false`, since in many languges, the subtokens
 // can differ quite a bit from surface forms (e.g. aux => à + les in French)
 local stanza_use_mwt = false;
 // Only needed if stanza_retokenize is `true`. Find your language code here:
 // https://stanfordnlp.github.io/stanza/performance.html
-local stanza_language_code = "wo";
+local stanza_language_code = null;
 // If set to null, we will attempt to guess something sensible. For reference, BERT
 // has 30000 vocabulary items.
 local vocab_size = 10000;
 
 // Data ---------------------------------------------------------------------------
-local whitespace_tokenized_text_path_train = "data/wolof/converted_punct/train/train.txt";
-local whitespace_tokenized_text_path_dev = "data/wolof/converted_punct/dev/dev.txt";
-local train_conllu_path = "data/wolof/UD_Wolof-WTB/wo_wtb-ud-train.conllu";
-local dev_conllu_path = "data/wolof/UD_Wolof-WTB/wo_wtb-ud-dev.conllu";
-local test_conllu_path = "data/wolof/UD_Wolof-WTB/wo_wtb-ud-test.conllu";
+local whitespace_tokenized_text_path_train = "data/coptic/converted/train/train_debug.txt";
+local whitespace_tokenized_text_path_dev = "data/coptic/converted/dev/dev_debug.txt";
+local train_conllu_path = "data/coptic/UD_Coptic-Scriptorium/cop_scriptorium-ud-train.conllu";
+local dev_conllu_path = "data/coptic/UD_Coptic-Scriptorium/cop_scriptorium-ud-dev.conllu";
+local test_conllu_path = "data/coptic/UD_Coptic-Scriptorium/cop_scriptorium-ud-test.conllu";
 
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
-local hidden_size = 128;
-local num_layers = 3;
+local hidden_size = 96;
+local num_layers = 4;
 // See https://huggingface.co/docs/transformers/en/model_doc/bert#transformers.BertConfig
 // Note that vocab_size will be overridden, so do not set it based on your tokenizer settings,
 // so do not overwrite it.
@@ -46,7 +46,7 @@ local bert_config = {
 local batch_size = 64;
 local grad_accum = 8;
 local effective_batch_size = grad_accum * batch_size;
-local num_steps = 1e4;
+local num_steps = 5e4;
 local validate_every = 1000;  // in steps
 
 // Optimizer ----------------------------------------------------------------------
@@ -59,7 +59,7 @@ local optimizer = {
 };
 local lr_scheduler = {
     type: "transformers::cosine",
-    num_warmup_steps: validate_every,
+    num_warmup_steps: validate_every * 5,
     num_training_steps: num_steps,
 };
 
@@ -106,6 +106,7 @@ local parse_task = {
 };
 local tasks = [pos_task, parse_task];
 
+
 // --------------------------------------------------------------------------------
 // Internal--don't modify below here unless you're sure you know what you're doing!
 // --------------------------------------------------------------------------------
@@ -145,18 +146,12 @@ local train_dataloader = {
     batch_size: batch_size,
     collate_fn: collate_fn,
     pin_memory: true,
-    num_workers: 2,
-    prefetch_factor: 4,
-    persistent_workers: true,
 };
 local val_dataloader = {
     shuffle: false,
     batch_size: batch_size,
     collate_fn: collate_fn,
     pin_memory: true,
-    num_workers: 2,
-    prefetch_factor: 4,
-    persistent_workers: true,
 };
 
 {
