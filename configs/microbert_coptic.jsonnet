@@ -21,11 +21,11 @@ local stanza_language_code = null;
 local vocab_size = 10000;
 
 // Data ---------------------------------------------------------------------------
-local whitespace_tokenized_text_path_train = "data/coptic/converted/train/train.txt";
-local whitespace_tokenized_text_path_dev = "data/coptic/converted/dev/dev.txt";
-local train_conllu_path = "data/coptic/UD_Coptic-Scriptorium/cop_scriptorium-ud-train.conllu";
-local dev_conllu_path = "data/coptic/UD_Coptic-Scriptorium/cop_scriptorium-ud-dev.conllu";
-local test_conllu_path = "data/coptic/UD_Coptic-Scriptorium/cop_scriptorium-ud-test.conllu";
+local whitespace_tokenized_text_path_train = "data/cop/train.txt";
+local whitespace_tokenized_text_path_dev = "data/cop/dev.txt";
+local train_conllu_path = "data/cop/cop_scriptorium-ud-train.conllu";
+local dev_conllu_path = "data/cop/cop_scriptorium-ud-dev.conllu";
+local test_conllu_path = "data/cop/cop_scriptorium-ud-test.conllu";
 
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
