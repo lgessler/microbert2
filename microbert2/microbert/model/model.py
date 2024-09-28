@@ -18,7 +18,7 @@ from microbert2.microbert.tasks.task import MicroBERTTask
 logger = logging.getLogger(__name__)
 
 
-def _remove_cls_and_sep(reprs: torch.Tensor, word_spans: torch.Tensor):
+def remove_cls_and_sep(reprs: torch.Tensor, word_spans: torch.Tensor):
     batch_size, seq_len, hidden = reprs.shape
     device = reprs.device
 
@@ -40,6 +40,7 @@ def _remove_cls_and_sep(reprs: torch.Tensor, word_spans: torch.Tensor):
 
     new_reprs = reprs.masked_select(reprs_mask)
     new_reprs = new_reprs.reshape((batch_size, seq_len - 2, hidden))
+    new_reprs = new_reprs[:, : word_spans.max().item() + 1]
 
     new_word_spans = word_spans.masked_select(word_spans_mask)
     new_word_spans = (new_word_spans - 1).clamp_min(0)

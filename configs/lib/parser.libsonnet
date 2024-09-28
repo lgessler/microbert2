@@ -1,4 +1,4 @@
-function (hidden_size, num_layers, num_pos_tags, num_head_tags) {
+function (hidden_size, num_layers) {
     input_dim: hidden_size,
     num_layers: num_layers + 1,
     pos_tag_embedding_dim: 64,
@@ -22,8 +22,6 @@ function (hidden_size, num_layers, num_pos_tags, num_head_tags) {
     //},
     tag_representation_dim: 50,
     arc_representation_dim: 50,
-    num_pos_tags: num_pos_tags,
-    num_head_tags: num_head_tags,
     use_layer_mix: false,
     initializer: import "parser_initializer.libsonnet",
 }

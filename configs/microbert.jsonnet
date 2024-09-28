@@ -76,7 +76,14 @@ local pos_task = {
     dev_conllu_path: dev_conllu_path,
     test_conllu_path: test_conllu_path,
 };
-local tasks = [pos_task];
+local parse_task = {
+    type: "microbert2.microbert.tasks.ud_pos.UDParseTask",
+    head: (import "lib/parser.libsonnet")(hidden_size, num_layers),
+    train_conllu_path: train_conllu_path,
+    dev_conllu_path: dev_conllu_path,
+    test_conllu_path: test_conllu_path,
+};
+local tasks = [pos_task, parse_task];
 
 
 // --------------------------------------------------------------------------------

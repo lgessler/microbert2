@@ -6,6 +6,7 @@ import copy
 import logging
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+import conllu
 import numpy
 import torch
 import torch.nn.functional as F
@@ -21,11 +22,14 @@ from allennlp_light.nn.util import (
     get_text_field_mask,
     masked_log_softmax,
 )
-from tango.common import FromParams
+from tango.common import FromParams, Lazy
 from torch.nn import Embedding
 from torch.nn.modules import Dropout
+from torch.nn.utils.rnn import pad_sequence
 
 from microbert2.common import pool_embeddings
+from microbert2.microbert.model.model import remove_cls_and_sep
+from microbert2.microbert.tasks.task import MicroBERTTask
 
 logger = logging.getLogger(__name__)
 
@@ -282,34 +286,30 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
 
     def forward(
         self,  # type: ignore
-        input_reprs: List[torch.Tensor],
-        word_spans: torch.LongTensor,
-        pos_tags: torch.LongTensor,
-        loss_mask: torch.LongTensor,
-        head_tags: torch.LongTensor = None,
-        head_indices: torch.LongTensor = None,
+        hidden: List[torch.Tensor],
+        token_spans: torch.LongTensor,
+        xpos: torch.LongTensor,
+        head: torch.LongTensor = None,
+        deprel: torch.LongTensor = None,
+        **kwargs,
     ) -> Dict[str, torch.Tensor]:
         """
         # Parameters
 
-        input_reprs : `List[torch.Tensor]`, required
+        hidden : `List[torch.Tensor]`, required
             Layerwise input representations from the encoder
-        word_spans: `torch.LongTensor`, required
+        token_spans : `torch.LongTensor`, required
             Contains pairs of inclusive indices that encode the mapping from wordpiece tokens
             to original tokens.
-        pos_tags : `torch.LongTensor`, required
+        xpos : `torch.LongTensor`, required
             The output of a `SequenceLabelField` containing POS tags.
             POS tags are required regardless of whether they are used in the model,
             because they are used to filter the evaluation metric to only consider
             heads of words which are not punctuation.
-        loss_mask : `torch.LongTensor`, required
-            A boolean mask of shape [batch_size] that indicates whether the given sequence
-            should be included in loss terms. (This is new in our modification of this module.)
-            1 for yes, 0 for no.
-        head_tags : `torch.LongTensor`, optional (default = `None`)
+        head : `torch.LongTensor`, optional (default = `None`)
             A torch tensor representing the sequence of integer gold class labels for the arcs
             in the dependency parse. Has shape `(batch_size, sequence_length)`.
-        head_indices : `torch.LongTensor`, optional (default = `None`)
+        deprel : `torch.LongTensor`, optional (default = `None`)
             A torch tensor representing the sequence of integer indices denoting the parent of every
             word in the dependency parse. Has shape `(batch_size, sequence_length)`.
 
@@ -333,13 +333,22 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         mask : `torch.BoolTensor`
             A mask denoting the padded elements in the batch.
         """
-        input_reprs = [pool_embeddings(l, word_spans) for l in input_reprs]
+        # Remove unneeded padding
+        token_spans = token_spans[:, : xpos.shape[-1] + 2]
+
+        # Remove CLS and SEP
+        trimmed = [remove_cls_and_sep(h_layer, token_spans) for h_layer in hidden]
+        hidden = [h_layer for h_layer, _ in trimmed]
+        token_spans = trimmed[-1][1]
+
+        # Pool wordpieces together into original token reprs
+        input_reprs = [pool_embeddings(l, token_spans) for l in hidden]
         input_reprs = self.mix(input_reprs) if self.use_layer_mix else input_reprs[-1]
-        mask = word_spans.gt(0).all(-1)
+        mask = token_spans.gt(0).all(-1)
         mask[:, 0] = True
 
-        if pos_tags is not None and self._pos_tag_embedding is not None:
-            embedded_pos_tags = self._pos_tag_embedding(pos_tags)
+        if xpos is not None and self._pos_tag_embedding is not None:
+            embedded_pos_tags = self._pos_tag_embedding(xpos)
             embedded_text_input = torch.cat([input_reprs, embedded_pos_tags], -1)
         elif self._pos_tag_embedding is not None:
             raise ValueError("Model uses a POS embedding, but no POS tags were passed.")
@@ -347,24 +356,10 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
             embedded_text_input = input_reprs
 
         predicted_heads, predicted_head_tags, mask, arc_nll, tag_nll = self._parse(
-            embedded_text_input, mask, loss_mask, head_tags, head_indices
+            embedded_text_input, mask, deprel, head
         )
 
         loss = arc_nll + tag_nll
-
-        if head_indices is not None and head_tags is not None:
-            evaluation_mask = self._get_mask_for_eval(mask[:, 1:], pos_tags)
-            # We calculate attachment scores for the whole sentence
-            # but excluding the symbolic ROOT token at the start,
-            # which is why we start from the second element in the sequence.
-            self._attachment_scores(
-                predicted_heads[:, 1:],
-                predicted_head_tags[:, 1:],
-                head_indices,
-                head_tags,
-                evaluation_mask,
-            )
-
         output_dict = {
             "heads": predicted_heads,
             "head_tags": predicted_head_tags,
@@ -374,13 +369,26 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
             "mask": mask,
         }
 
+        if deprel is not None and head is not None:
+            evaluation_mask = self._get_mask_for_eval(mask[:, 1:], xpos)
+            # We calculate attachment scores for the whole sentence
+            # but excluding the symbolic ROOT token at the start,
+            # which is why we start from the second element in the sequence.
+            self._attachment_scores(
+                predicted_heads[:, 1:],
+                predicted_head_tags[:, 1:],
+                deprel,
+                head,
+                evaluation_mask,
+            )
+            output_dict["las"] = self._attachment_scores.get_metric(True)["LAS"]
+
         return output_dict
 
     def _parse(
         self,
         embedded_text_input: torch.Tensor,
         mask: torch.BoolTensor,
-        loss_mask: torch.LongTensor,
         head_tags: torch.LongTensor = None,
         head_indices: torch.LongTensor = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -423,17 +431,13 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
                 head_tag_representation, child_tag_representation, attended_arcs, mask
             )
         # Check if we have any gold trees and bail out if not
-        if loss_mask.sum().item() == 0:
-            device = loss_mask.device
-            arc_nll, tag_nll = torch.tensor(0.0, device=device), torch.tensor(0.0, device=device)
-        elif head_indices is not None and head_tags is not None:
+        if head_indices is not None and head_tags is not None:
             arc_nll, tag_nll = self._construct_loss(
                 head_tag_representation=head_tag_representation,
                 child_tag_representation=child_tag_representation,
                 attended_arcs=attended_arcs,
                 head_indices=head_indices,
                 head_tags=head_tags,
-                loss_mask=loss_mask,
                 mask=mask,
             )
         else:
@@ -443,7 +447,6 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
                 attended_arcs=attended_arcs,
                 head_indices=predicted_heads.long(),
                 head_tags=predicted_head_tags.long(),
-                loss_mask=loss_mask,
                 mask=mask,
             )
 
@@ -456,7 +459,6 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         attended_arcs: torch.Tensor,
         head_indices: torch.Tensor,
         head_tags: torch.Tensor,
-        loss_mask: torch.LongTensor,
         mask: torch.BoolTensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -481,8 +483,6 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         head_tags : `torch.Tensor`, required.
             A tensor of shape (batch_size, sequence_length).
             The dependency labels of the heads for every word.
-        loss_mask : `torch.LongTensor`, required.
-            Mask of shape [batch_size]: 1 if sequence should be included in loss, 0 otherwise
         mask : `torch.BoolTensor`, required.
             A mask of shape (batch_size, sequence_length), denoting unpadded
             elements in the sequence.
@@ -517,11 +517,6 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         # The number of valid positions is equal to the number of unmasked elements minus
         # 1 per sequence in the batch, to account for the symbolic HEAD token.
         valid_positions_by_sequence = mask.sum(-1) - 1
-
-        # Apply the loss mask
-        valid_positions_by_sequence = valid_positions_by_sequence * loss_mask.unsqueeze(-1)
-        arc_loss = arc_loss * loss_mask.unsqueeze(-1)
-        tag_loss = tag_loss * loss_mask.unsqueeze(-1)
 
         arc_nll = -arc_loss.sum() / valid_positions_by_sequence.float().sum()
         tag_nll = -tag_loss.sum() / valid_positions_by_sequence.float().sum()
@@ -755,3 +750,88 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
             label_mask = pos_tags.eq(label)
             new_mask = new_mask & ~label_mask
         return new_mask
+
+
+def read_split(path):
+    result = []
+    with open(path, "r") as f:
+        for sentence in conllu.parse_incr(f):
+            result.append(
+                {
+                    "tokens": [t["form"] for t in sentence if isinstance(t["id"], int)],
+                    "xpos": [t["xpos"] for t in sentence if isinstance(t["id"], int)],
+                    "head": [t["head"] for t in sentence if isinstance(t["id"], int)],
+                    "deprel": [t["deprel"] for t in sentence if isinstance(t["id"], int)],
+                }
+            )
+    return result
+
+
+@MicroBERTTask.register("microbert2.microbert.tasks.ud_pos.UDParseTask")
+class UDParseTask(MicroBERTTask):
+    def __init__(
+        self,
+        head: Lazy[BiaffineDependencyParser],
+        train_conllu_path: str,
+        dev_conllu_path: str,
+        test_conllu_path: Optional[str] = None,
+        proportion: float = 0.1,
+    ):
+        self._dataset = {
+            "train": read_split(train_conllu_path),
+            "dev": read_split(dev_conllu_path),
+            "test": read_split(test_conllu_path) if test_conllu_path is not None else [],
+        }
+        self._proportion = proportion
+        relation_set = set(
+            l for x in self._dataset["train"] + self._dataset["dev"] + self._dataset["test"] for l in x["deprel"]
+        )
+        xpos_set = set(
+            l for x in self._dataset["train"] + self._dataset["dev"] + self._dataset["test"] for l in x["xpos"]
+        )
+        self._rels = {v: i for i, v in enumerate(sorted(list(relation_set)))}
+        self._tags = {v: i for i, v in enumerate(sorted(list(xpos_set)))}
+        self._head = head
+
+    @property
+    def slug(self):
+        return "parse"
+
+    @property
+    def head(self):
+        return self._head.construct(num_pos_tags=len(self._tags), num_head_tags=len(self._rels))
+
+    @property
+    def data_keys(self):
+        return ["xpos", "head", "deprel"]
+
+    @property
+    def dataset(self):
+        return self._dataset
+
+    @property
+    def inst_proportion(self) -> float:
+        return self._proportion
+
+    def tensorify_data(self, key, value):
+        if key == "xpos":
+            return torch.tensor([self._tags[v] for v in value])
+        elif key == "deprel":
+            return torch.tensor([self._rels[v] for v in value])
+        elif key == "head":
+            return torch.tensor(value)
+        else:
+            raise ValueError(key)
+
+    def null_tensor(self, key):
+        if key in self.data_keys:
+            return torch.tensor([0])
+        else:
+            raise ValueError(key)
+
+    def collate_data(self, key: str, values: list[torch.Tensor]):
+        return pad_sequence(values, batch_first=True, padding_value=0)
+
+    @property
+    def progress_items(self):
+        return ["loss", "las"]
