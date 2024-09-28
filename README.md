@@ -35,7 +35,9 @@ pip install -r requirements.txt
 tango run configs/microbert_coptic.jsonnet
 ```
 
-3. The finished `transformers.AutoModel`- and `transformers.AutoTokenizer`-compatible models will be saved to `workspace/models`.
+3. You can use tensorboard to monitor progress. Type `tensorboard --logdir workspace` to start the dashboard, and navigate to http://localhost:6006 to view training and validation curves.
+
+4. The finished `transformers.AutoModel`- and `transformers.AutoTokenizer`-compatible models will be saved to `workspace/models`.
 Be warned: multiple runs of the same configuration will result in the original model being overwritten, so be sure to e.g. change the value of `name` inside the configuration between runs.
 
 # Guide
