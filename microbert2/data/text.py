@@ -46,6 +46,7 @@ class ReadWhitespaceTokenizedText(Step):
         self,
         train_path: str,
         dev_path: str,
+        test_path: str,
         stanza_retokenize: bool = False,
         stanza_use_mwt: bool = True,
         stanza_language_code: Optional[str] = None,
@@ -65,9 +66,11 @@ class ReadWhitespaceTokenizedText(Step):
 
         train_sentences = read_from_path(train_path)
         dev_sentences = read_from_path(dev_path)
+        test_sentences = read_from_path(test_path)
         if stanza_retokenize:
             train_sentences = retokenize(self, pipeline, stanza_use_mwt, train_sentences, train_path)
             dev_sentences = retokenize(self, pipeline, stanza_use_mwt, dev_sentences, dev_path)
+            test_sentences = retokenize(self, pipeline, stanza_use_mwt, test_sentences, test_path)
 
         self.logger.info(
             f"Read {len(train_sentences)} train_sentences "
@@ -76,9 +79,15 @@ class ReadWhitespaceTokenizedText(Step):
         self.logger.info(
             f"Read {len(dev_sentences)} dev_sentences " f"({sum(len(x) for x in dev_sentences)} tokens) from {dev_path}"
         )
+        self.logger.info(
+            f"Read {len(test_sentences)} test_sentences "
+            f"({sum(len(x) for x in test_sentences)} tokens) from {test_path}"
+        )
         train_dataset = [{"tokens": s} for s in train_sentences]
         dev_dataset = [{"tokens": s} for s in dev_sentences]
+        test_dataset = [{"tokens": s} for s in test_sentences]
         self.logger.info(f"First train sentence: {train_dataset[0]}")
         self.logger.info(f"First dev sentence: {dev_dataset[0]}")
+        self.logger.info(f"First test sentence: {test_dataset[0]}")
 
-        return {"train": train_dataset, "dev": dev_dataset}
+        return {"train": train_dataset, "dev": dev_dataset, "test": test_dataset}

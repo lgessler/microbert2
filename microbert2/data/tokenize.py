@@ -114,7 +114,9 @@ class SubwordTokenize(Step):
                 yield d
 
         result = [x for x in inner()]
-        self.logger.info(f"Split {split_name}: {sentence_count} sentences, {token_count} tokens, {wp_count} wordpieces.")
+        self.logger.info(
+            f"Split {split_name}: {sentence_count} sentences, {token_count} tokens, {wp_count} wordpieces."
+        )
         return result
 
     def run(
