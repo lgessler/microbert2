@@ -364,8 +364,6 @@ def _train(
     )
 
     writer = SummaryWriter(str(config.work_dir / "tensorboard"))
-    writer.add_text("language", os.environ["LANGUAGE"])
-    writer.add_text("name", os.environ["NAME"])
 
     # Check working directory to see if we should recover from a previous run.
     initial_state: Optional[Dict[str, Any]] = None
@@ -564,6 +562,7 @@ def _train(
         disable=not config.is_local_main_process,
     )
     train_batch_iterator = more_itertools.peekable(train_batch_iterator_tqdm)
+    global_step = 0
     try:
         for step, (epoch, batch) in train_batch_iterator:
             if epoch != current_epoch:
@@ -640,13 +639,13 @@ def _train(
             writer.add_scalar(
                 "Train/lr",
                 torch.tensor(training_engine.lr_scheduler.get_last_lr(), dtype=torch.float),
-                global_step=step,
+                global_step=global_step,
             )
             if "progress_items" in batch_outputs[0]:
                 for bo in batch_outputs:
                     for k, v in bo["progress_items"].items():
-                        writer.add_scalar(f"Train/{k}", torch.tensor(v, dtype=torch.float), global_step=step)
-                    writer.add_scalar(f"Train/loss", bo["loss"], global_step=step)
+                        writer.add_scalar(f"Train/{k}", torch.tensor(v, dtype=torch.float), global_step=global_step)
+                    writer.add_scalar(f"Train/loss", bo["loss"], global_step=global_step)
             if config.should_log_this_step(step):
                 # Callbacks.
                 for callback in callbacks:
@@ -663,6 +662,7 @@ def _train(
                     metrics_to_log[f"best_val_{config.val_metric_name}"] = best_val_metric
                 if config.is_local_main_process:
                     train_batch_iterator_tqdm.set_postfix(**metrics_to_log)
+            global_step += 1
 
             # Validate.
             if should_validate_this_step:
@@ -716,13 +716,12 @@ def _train(
                             val_metric = val_metric_tensor.item() / config.world_size
 
                         # Update progress bar.
-                        if "progress_items" in batch_outputs[0]:
-                            for bo in batch_outputs:
-                                for k, v in bo["progress_items"].items():
-                                    writer.add_scalar(
-                                        f"Val/{k}", torch.tensor(v, dtype=torch.float), global_step=step + val_step
-                                    )
-                                writer.add_scalar(f"Val/loss", bo["loss"], global_step=step + val_step)
+                        if "progress_items" in outputs:
+                            for k, v in outputs["progress_items"].items():
+                                writer.add_scalar(
+                                    f"Val/{k}", torch.tensor(v, dtype=torch.float), global_step=global_step
+                                )
+                            writer.add_scalar(f"Val/loss", outputs["loss"], global_step=global_step)
                         if config.is_local_main_process and config.should_log_this_val_step(val_step):
                             metrics_to_log = {config.val_metric_name: val_metric}
                             if "progress_items" in batch_outputs[0]:
@@ -730,6 +729,7 @@ def _train(
                                     {k: f"{v:0.2f}" for k, v in batch_outputs[0]["progress_items"].items()}
                                 )
                             val_batch_iterator.set_postfix(**metrics_to_log)
+                        global_step += 1
 
                         # Clean up.
                         del val_batch

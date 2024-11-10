@@ -8,17 +8,17 @@ import psutil
 import torch
 from datasets import DatasetDict
 from tango.integrations.torch import Model, TrainCallback
+from torch import nn
 from transformers.modeling_outputs import BaseModelOutputWithPoolingAndCrossAttentions
 
 from microbert2.common import dill_dump, dill_load
-from microbert2.microbert.model.biaffine_parser import BiaffineDependencyParser
 from microbert2.microbert.model.encoder import MicroBERTEncoder
-from microbert2.microbert.model.xpos import XposHead
+from microbert2.microbert.tasks.task import MicroBERTTask
 
 logger = logging.getLogger(__name__)
 
 
-def _remove_cls_and_sep(reprs: torch.Tensor, word_spans: torch.Tensor):
+def remove_cls_and_sep(reprs: torch.Tensor, word_spans: torch.Tensor):
     batch_size, seq_len, hidden = reprs.shape
     device = reprs.device
 
@@ -40,6 +40,7 @@ def _remove_cls_and_sep(reprs: torch.Tensor, word_spans: torch.Tensor):
 
     new_reprs = reprs.masked_select(reprs_mask)
     new_reprs = new_reprs.reshape((batch_size, seq_len - 2, hidden))
+    new_reprs = new_reprs[:, : word_spans.max().item() + 1]
 
     new_word_spans = word_spans.masked_select(word_spans_mask)
     new_word_spans = (new_word_spans - 1).clamp_min(0)
@@ -57,9 +58,7 @@ class MicroBERTModel(Model):
     def __init__(
         self,
         encoder: MicroBERTEncoder,
-        counts: Dict[str, int],
-        tagger: Optional[XposHead] = None,
-        parser: Optional[BiaffineDependencyParser] = None,
+        tasks: list[MicroBERTTask] = [],
         *args,
         **kwargs,
     ):
@@ -74,17 +73,12 @@ class MicroBERTModel(Model):
             **kwargs:
         """
         super().__init__()
-        self.counts = counts
 
         # a BERT-style Transformer encoder stack
         self.encoder = encoder
-
-        self.tagger = tagger
-        if tagger is not None:
-            logger.info("xpos tagging head initialized")
-        self.parser = parser
-        if parser is not None:
-            logger.info("dynamic parsing head initialized")
+        self.tasks = tasks
+        self.task_heads = nn.ModuleList([task.head for task in tasks])
+        logger.info(f"Initialized MicroBERT model: {self}")
 
     def forward(
         self,
@@ -93,14 +87,10 @@ class MicroBERTModel(Model):
         attention_mask,
         token_type_ids,
         token_spans,
-        xpos,
-        head,
-        deprel,
-        tree_is_gold,
+        dataset_id,
         labels=None,
+        **kwargs,
     ):
-        tree_is_gold = tree_is_gold.squeeze(-1)
-
         encoder_outputs: BaseModelOutputWithPoolingAndCrossAttentions = self.encoder(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -135,27 +125,28 @@ class MicroBERTModel(Model):
             outputs["progress_items"]["mlm_loss"] = head_loss["mlm"]
             outputs["progress_items"]["perplexity"] = head_loss["mlm"].exp().item()
 
-            # XPOS loss
-            num_gold = tree_is_gold.sum().item()
-            if self.tagger is not None and num_gold > 0:
-                xpos_outputs = self.tagger(encoder_outputs.hidden_states, token_spans, tree_is_gold, xpos)
-                loss += xpos_outputs["loss"]
-                outputs["progress_items"]["xpos_acc"] = xpos_outputs["accuracy"].item()
-                outputs["progress_items"]["xpos_loss"] = xpos_outputs["loss"].item()
-
-            # parser loss
-            if self.parser is not None and num_gold > 0:
-                trimmed = [_remove_cls_and_sep(h_layer, token_spans) for h_layer in encoder_outputs.hidden_states]
-                parser_output = self.parser.forward(
-                    [x[0] for x in trimmed], trimmed[-1][1], xpos, tree_is_gold, deprel, head
-                )
-                loss += parser_output["loss"]
-                outputs["progress_items"]["arc_loss"] = parser_output["arc_loss"].item()
-                outputs["progress_items"]["tag_loss"] = parser_output["tag_loss"].item()
-
             # Replaced token detection loss for electra (if using)
             if "rtd" in head_loss:
                 outputs["progress_items"]["rtd_loss"] = head_loss["rtd"].item()
+
+            i = 1
+            for task in self.tasks:
+                indexes = dataset_id == i
+                if indexes.sum(0).item() == 0:
+                    continue
+                task_args = {}
+                task_args["hidden"] = [h[indexes] for h in encoder_outputs.hidden_states]
+                task_args["hidden_masked"] = [h[indexes] for h in masked_encoder_outputs.hidden_states]
+                task_args["token_spans"] = token_spans[indexes]
+                for k in task.data_keys:
+                    task_args[k] = kwargs[k][indexes]
+                task_outputs = self.task_heads[i - 1](**task_args)
+                for k in task.progress_items:
+                    if k in task_outputs:
+                        outputs["progress_items"][task.slug + "_" + k] = task_outputs[k]
+                outputs[task.slug + "_loss"] = task_outputs["loss"]
+                loss += task_outputs["loss"]
+                i += 1
 
             outputs["loss"] = loss
             outputs["perplexity"] = outputs["progress_items"]["perplexity"]
