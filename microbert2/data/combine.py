@@ -70,7 +70,7 @@ class CombineDatasets(Step):
             task_dataset = {}
             for split, insts in dataset.items():
                 base_dataset = [process_row(v, task, i) for v in insts]
-                if split == "train":
+                if split == "train" and len(mlm_dataset["train"]) > 1:
                     scaled_dataset = rescale(base_dataset, len(mlm_dataset["train"]) * task.inst_proportion)
                     self.logger.info(
                         f"Rescaled train split for {task.slug} from {len(base_dataset)} to {len(scaled_dataset)}"

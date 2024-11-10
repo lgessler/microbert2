@@ -130,7 +130,9 @@ class UDPOSTask(MicroBERTTask, CustomDetHash):
             "test": read_split(test_conllu_path, tag_type) if test_conllu_path is not None else [],
         }
         self._proportion = proportion
-        tag_set = set(l for x in self._dataset["train"] + self._dataset["dev"] for l in x["pos_label"])
+        tag_set = set(
+            l for x in self._dataset["train"] + self._dataset["dev"] + self._dataset["test"] for l in x["pos_label"]
+        )
         self._tags = {v: i for i, v in enumerate(sorted(list(tag_set)))}
         self._head = head
         self._hash_string = (
