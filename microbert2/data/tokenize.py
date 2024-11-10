@@ -28,9 +28,10 @@ class SubwordTokenize(Step):
         string_tokens: List[str],
         tokenizer: Tokenizer,
         max_wordpieces: int,
-    ) -> Tuple[List[int], List[Optional[Tuple[int, int]]]]:
+    ) -> Tuple[List[int], List[Optional[Tuple[int, int]]], bool]:
         tokens = []
         offsets = []
+        truncated = False
         for i, token_string in enumerate(string_tokens):
             wordpieces = tokenizer.encode_plus(
                 token_string,
@@ -46,6 +47,7 @@ class SubwordTokenize(Step):
                 self.logger.warning(
                     f"Stopping at token {i} in sentence with {len(string_tokens)} tokens due to wordpiece limit"
                 )
+                truncated = True
                 break
 
             if len(wp_ids) > 0:
@@ -54,7 +56,7 @@ class SubwordTokenize(Step):
             else:
                 tokens.append(tokenizer.unk_token_id)
                 offsets.append((len(tokens) - 1, len(tokens) - 1))
-        return tokens, offsets
+        return tokens, offsets, truncated
 
     @staticmethod
     def _increment_offsets(
@@ -67,22 +69,28 @@ class SubwordTokenize(Step):
         string_tokens: List[str],
         tokenizer: Tokenizer,
         max_wordpieces: int,
-    ) -> Tuple[List[int], List[Optional[Tuple[int, int]]]]:
+    ) -> Tuple[List[int], List[Optional[Tuple[int, int]]], bool]:
         """
         Tokenizes each word into wordpieces separately and returns the wordpiece IDs.
         Also calculates offsets such that tokens[offsets[i][0]:offsets[i][1] + 1]
         corresponds to the original i-th token.
         This function inserts special tokens.
         """
-        wp_ids, offsets = self._intra_word_tokenize(string_tokens, tokenizer, max_wordpieces - 2)
+        wp_ids, offsets, truncated = self._intra_word_tokenize(string_tokens, tokenizer, max_wordpieces - 2)
         # Handle special tokens
         wp_ids = [tokenizer.cls_token_id] + wp_ids + [tokenizer.sep_token_id]
         offsets = self._increment_offsets(offsets, 1)
         offsets = [(0, 0)] + offsets + [(offsets[-1][1] + 1,) * 2]
-        return wp_ids, offsets
+        return wp_ids, offsets, truncated
 
     def _process_split(
-        self, split: list, split_name: str, task_slug: str, tokenizer: Tokenizer, max_length: Optional[int]
+        self,
+        split: list,
+        split_name: str,
+        task_slug: str,
+        tokenizer: Tokenizer,
+        max_length: Optional[int],
+        discard_truncated: bool = False,
     ) -> list:
         wp_count = 0
         sentence_count = 0
@@ -95,7 +103,7 @@ class SubwordTokenize(Step):
             nonlocal wp_count, sentence_count, token_count
             for d in Tqdm.tqdm(split, desc=f"Tokenizing {task_slug} ({split_name})"):
                 sentence = d["tokens"]
-                wp_ids, token_spans = self.intra_word_tokenize(sentence, tokenizer, max_length)
+                wp_ids, token_spans, truncated = self.intra_word_tokenize(sentence, tokenizer, max_length)
                 flattened = []
                 for pair in token_spans:
                     flattened.extend(pair)
@@ -111,11 +119,18 @@ class SubwordTokenize(Step):
                 wp_count += len(wp_ids)
                 sentence_count += 1
                 token_count += len(token_spans) - 2
-                yield d
+                yield d, truncated
 
-        result = [x for x in inner()]
+        result = []
+        num_discard = 0
+        for x, truncated in inner():
+            if discard_truncated and truncated:
+                num_discard += 1
+                continue
+            result.append(x)
         self.logger.info(
-            f"Split {split_name}: {sentence_count} sentences, {token_count} tokens, {wp_count} wordpieces."
+            f"Split {split_name}: {sentence_count} sentences, {token_count} tokens, {wp_count} wordpieces"
+            f", {num_discard} discarded"
         )
         return result
 
@@ -131,7 +146,8 @@ class SubwordTokenize(Step):
         datasets.append(mlm_dataset)
         for task in tasks:
             task_dataset = {
-                k: self._process_split(v, k, task.slug, tokenizer, max_length) for k, v in task.dataset.items()
+                k: self._process_split(v, k, task.slug, tokenizer, max_length, discard_truncated=True)
+                for k, v in task.dataset.items()
             }
             datasets.append(task_dataset)
         return datasets
