@@ -31,7 +31,7 @@ class SubwordTokenize(Step):
     ) -> Tuple[List[int], List[Optional[Tuple[int, int]]]]:
         tokens = []
         offsets = []
-        for token_string in string_tokens:
+        for i, token_string in enumerate(string_tokens):
             wordpieces = tokenizer.encode_plus(
                 token_string,
                 add_special_tokens=False,
@@ -43,6 +43,9 @@ class SubwordTokenize(Step):
 
             # Stop early if adding this token would exceed our budget
             if len(tokens) + len(wp_ids) > max_wordpieces:
+                self.logger.warning(
+                    f"Stopping at token {i} in sentence with {len(string_tokens)} tokens due to wordpiece limit"
+                )
                 break
 
             if len(wp_ids) > 0:
@@ -81,10 +84,15 @@ class SubwordTokenize(Step):
     def _process_split(
         self, split: list, split_name: str, task_slug: str, tokenizer: Tokenizer, max_length: Optional[int]
     ) -> list:
+        wp_count = 0
+        sentence_count = 0
+        token_count = 0
+
         sample = pprint.pformat(random.choice(split), indent=4, width=120, compact=True)
         self.logger.info(f"Sample inst from {task_slug}_{split_name}:\n\n\t{sample}\n")
 
         def inner():
+            nonlocal wp_count, sentence_count, token_count
             for d in Tqdm.tqdm(split, desc=f"Tokenizing {task_slug} ({split_name})"):
                 sentence = d["tokens"]
                 wp_ids, token_spans = self.intra_word_tokenize(sentence, tokenizer, max_length)
@@ -100,9 +108,14 @@ class SubwordTokenize(Step):
                     "attention_mask": [1] * len(wp_ids),
                     "token_type_ids": [0] * len(wp_ids),
                 }
+                wp_count += len(wp_ids)
+                sentence_count += 1
+                token_count += len(token_spans) - 2
                 yield d
 
-        return [x for x in inner()]
+        result = [x for x in inner()]
+        self.logger.info(f"Split {split}: {sentence_count} sentences, {token_count} tokens, {wp_count} wordpieces.")
+        return result
 
     def run(
         self,

@@ -149,6 +149,7 @@ class MicroBERTModel(Model):
                 i += 1
 
             outputs["loss"] = loss
+            outputs["perplexity"] = outputs["progress_items"]["perplexity"]
             return outputs
         else:
             return {}
