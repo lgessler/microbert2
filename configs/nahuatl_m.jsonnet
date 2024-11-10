@@ -78,7 +78,7 @@ local pos_task = {
     dev_conllu_path: dev_conllu_path,
     test_conllu_path: test_conllu_path,
 };
-local tasks = [pos_task];
+local tasks = [];
 
 
 // --------------------------------------------------------------------------------
