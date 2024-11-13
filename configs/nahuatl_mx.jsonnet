@@ -173,7 +173,7 @@ local val_dataloader = {
             model: model,
             dataset_dict: { type: "ref", ref: "model_inputs" },
             training_engine: training_engine,
-            log_every: 1,
+            log_every: 1000,
             train_dataloader: train_dataloader,
             //train_epochs: num_epochs,
             train_steps: num_steps,
