@@ -166,6 +166,7 @@ local val_dataloader = {
             type: "microbert2.data.text::read_whitespace_tokenized_text",
             train_path: whitespace_tokenized_text_path_train,
             dev_path: whitespace_tokenized_text_path_dev,
+            test_path: whitespace_tokenized_text_path_dev,
             stanza_retokenize: stanza_retokenize,
             stanza_use_mwt: stanza_use_mwt,
             stanza_language_code: stanza_language_code,
