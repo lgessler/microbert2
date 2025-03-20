@@ -29,7 +29,7 @@ local test_conllu_path = "data/cop/cop_scriptorium-ud-test.conllu";
 
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
-local hidden_size = 96;
+local hidden_size = 128;
 local num_layers = 4;
 // See https://huggingface.co/docs/transformers/en/model_doc/bert#transformers.BertConfig
 // Note that vocab_size will be overridden, so do not set it based on your tokenizer settings,
