@@ -7,9 +7,10 @@ from tango.common import Registrable
 from tango.integrations.transformers import Tokenizer
 from torch import nn
 from transformers import BertConfig, BertModel, ElectraConfig, ElectraModel
-from transformers.activations import GELUActivation, gelu, get_activation
+from transformers.activations import gelu, get_activation
 
 from microbert2.common import dill_dump, dill_load
+
 
 logger = logging.getLogger(__name__)
 
