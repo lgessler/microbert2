@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from tango.common import Registrable
 from tango.integrations.transformers import Tokenizer
 from torch import nn
-from transformers import BertConfig, BertModel, ElectraConfig, ElectraModel
+from transformers import BertConfig, BertModel, ElectraConfig, ElectraModel, ModernBertConfig, ModernBertModel
 from transformers.activations import gelu, get_activation
 
 from microbert2.common import dill_dump, dill_load
@@ -36,6 +36,35 @@ class BertEncoder(MicroBERTEncoder):
     @property
     def embedding_weights(self):
         return self.encoder.embeddings.word_embeddings.weight
+
+
+@MicroBERTEncoder.register("modernbert")
+class ModernBertEncoder(MicroBERTEncoder):
+    def __init__(self, tokenizer: Tokenizer, bert_config: Dict[str, Any]):
+        super().__init__()
+        self.pad_id = tokenizer.pad_token_id
+        config = ModernBertConfig(
+            **bert_config,
+            vocab_size=len(tokenizer.get_vocab()),
+            pad_token_id=tokenizer.pad_token_id,
+            cls_token_id=tokenizer.cls_token_id,
+            sep_token_id=tokenizer.sep_token_id,
+            bos_token_id=tokenizer.cls_token_id,
+            eos_token_id=tokenizer.sep_token_id,
+        )
+        logger.info(f"Initializing a new BERT model with config {config}")
+        self.config = config
+        self.encoder = ModernBertModel(config=config)
+        self.tokenizer = tokenizer
+
+    def forward(self, *args, **kwargs):
+        if "token_type_ids" in kwargs:
+            kwargs.pop("token_type_ids")
+        return self.encoder(*args, return_dict=True, **kwargs)
+
+    @property
+    def embedding_weights(self):
+        return self.encoder.embeddings.tok_embeddings.weight
 
 
 class TiedElectraGeneratorPredictions(nn.Module):

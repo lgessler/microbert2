@@ -854,4 +854,4 @@ class UDParseTask(MicroBERTTask, CustomDetHash):
 
     @property
     def progress_items(self):
-        return ["loss", "las", "uas"]
+        return ["las"]

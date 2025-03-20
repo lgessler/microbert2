@@ -28,7 +28,7 @@ class TiedRobertaLMHead(nn.Module):
         super().__init__()
         self.config = config
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.layer_norm = nn.LayerNorm(config.hidden_size, eps=1e-12)
         self.embedding_weights = embedding_weights
 
     def forward(self, hidden_masked, labels, **kwargs):

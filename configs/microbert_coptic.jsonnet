@@ -3,7 +3,7 @@
 // --------------------------------------------------------------------------------
 local language = "coptic";
 // Optional, will be used in generated files--set to something descriptive if you'd like.
-local experiment_name = "mxp_encoder";
+local experiment_name = "mx_modern";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -37,9 +37,12 @@ local num_layers = 4;
 local bert_config = {
     hidden_size: hidden_size,
     num_hidden_layers: num_layers,
-    num_attention_heads: 8,
+    num_attention_heads: 4,
     intermediate_size: 512,
     max_position_embeddings: max_length,
+    attention_dropout: 0.1,
+    embedding_dropout: 0.1,
+    mlp_dropout: 0.1,
 };
 
 // Training -----------------------------------------------------------------------
@@ -116,7 +119,7 @@ local parse_task = {
     dev_conllu_path: dev_conllu_path,
     test_conllu_path: test_conllu_path,
 };
-local tasks = [mlm_task, pos_task, parse_task];
+local tasks = [mlm_task, pos_task];
 
 
 // --------------------------------------------------------------------------------
@@ -128,7 +131,7 @@ local model = {
     model_output_path: model_path,
     tasks: tasks,
     encoder: {
-        type: "bert",
+        type: "modernbert",
         tokenizer: tokenizer,
         bert_config: bert_config,
     }
