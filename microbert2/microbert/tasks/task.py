@@ -18,6 +18,13 @@ class MicroBERTTask(Registrable):
         raise NotImplemented()
 
     @property
+    def universal(self) -> bool:
+        """
+        Whether the task is universal, i.e. should be applied to all instances.
+        """
+        return False
+
+    @property
     def dataset(self) -> dict[Literal["train", "dev", "test"], list[dict[str, Any]]]:
         """
         A dict containing the three splits (test is optional). Each split is a list of objects
@@ -34,14 +41,11 @@ class MicroBERTTask(Registrable):
         """
         raise NotImplemented()
 
-    @property
-    def head(self) -> nn.Module:
+    def construct_head(self, model) -> nn.Module:
         """
-        The module which will take the encoder's output and perform the task.
+        Creates the module which will take the encoder's output and perform the task.
         The module will be given:
         - all data associated with the keys in data_keys EXCEPT for "tokens"
-        - hidden:
-            the hidden representation of every layer without masking
         - hidden_masked:
             the hidden representation of every layer with masking
         - token_spans:

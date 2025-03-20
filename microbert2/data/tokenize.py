@@ -142,8 +142,6 @@ class SubwordTokenize(Step):
         tasks: list[MicroBERTTask] = [],
     ) -> list[dict[Literal["train", "dev", "test"], list[dict[str, Any]]]]:
         datasets = []
-        mlm_dataset = {k: self._process_split(v, k, "mlm", tokenizer, max_length) for k, v in dataset.items()}
-        datasets.append(mlm_dataset)
         for task in tasks:
             task_dataset = {
                 k: self._process_split(v, k, task.slug, tokenizer, max_length, discard_truncated=True)

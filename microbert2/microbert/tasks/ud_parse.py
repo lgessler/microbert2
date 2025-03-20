@@ -283,7 +283,7 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
 
     def forward(
         self,  # type: ignore
-        hidden: List[torch.Tensor],
+        hidden_masked: List[torch.Tensor],
         token_spans: torch.LongTensor,
         xpos: torch.LongTensor,
         head: torch.LongTensor = None,
@@ -293,8 +293,8 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         """
         # Parameters
 
-        hidden : `List[torch.Tensor]`, required
-            Layerwise input representations from the encoder
+        hidden_masked : `List[torch.Tensor]`, required
+            Layerwise input representations from the encoder with masking
         token_spans : `torch.LongTensor`, required
             Contains pairs of inclusive indices that encode the mapping from wordpiece tokens
             to original tokens.
@@ -335,14 +335,14 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
 
         if self.use_layer_mix:
             # Remove CLS and SEP
-            trimmed = [remove_cls_and_sep(h_layer, token_spans) for h_layer in hidden]
+            trimmed = [remove_cls_and_sep(h_layer, token_spans) for h_layer in hidden_masked]
             hidden = [h_layer for h_layer, _ in trimmed]
             token_spans = trimmed[-1][1]
             # Pool wordpieces together into original token reprs
             input_reprs = [pool_embeddings(l, token_spans) for l in hidden]
             input_reprs = self.mix(input_reprs)
         else:
-            hidden, token_spans = remove_cls_and_sep(hidden[self.layer_index], token_spans)
+            hidden, token_spans = remove_cls_and_sep(hidden_masked[self.layer_index], token_spans)
             input_reprs = pool_embeddings(hidden, token_spans)
         mask = token_spans.gt(0).all(-1)
         mask[:, 0] = True
@@ -814,8 +814,7 @@ class UDParseTask(MicroBERTTask, CustomDetHash):
     def slug(self):
         return "parse"
 
-    @property
-    def head(self):
+    def construct_head(self, model):
         ignore = [self._rels["punct"]] if "punct" in self._rels else []
         logger.info(f"deprel ignore list: {ignore}")
         return self._head.construct(

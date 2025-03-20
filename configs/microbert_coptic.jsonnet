@@ -63,7 +63,19 @@ local lr_scheduler = {
     num_training_steps: num_steps,
 };
 
+// Some set up, don't modify ------------------------------------------------------
+local util = import 'lib/util.libsonnet';
+local model_path = (
+    "./workspace/models/" + language + "_" + experiment_name + "_" + util.stringifyObject(bert_config)
+);
+local tokenizer = { pretrained_model_name_or_path: model_path };
+
 // Tasks --------------------------------------------------------------------------
+local mlm_task = {
+    type: "microbert2.microbert.tasks.mlm.MLMTask",
+    dataset: { type: "ref", ref: "raw_text_data" },
+    tokenizer: tokenizer,
+};
 local pos_task = {
     type: "microbert2.microbert.tasks.ud_pos.UDPOSTask",
     head: {
@@ -104,17 +116,12 @@ local parse_task = {
     dev_conllu_path: dev_conllu_path,
     test_conllu_path: test_conllu_path,
 };
-local tasks = [pos_task, parse_task];
+local tasks = [mlm_task, pos_task, parse_task];
 
 
 // --------------------------------------------------------------------------------
 // Internal--don't modify below here unless you're sure you know what you're doing!
 // --------------------------------------------------------------------------------
-local util = import 'lib/util.libsonnet';
-local model_path = (
-    "./workspace/models/" + language + "_" + experiment_name + "_"+ util.stringifyObject(bert_config)
-);
-local tokenizer = { pretrained_model_name_or_path: model_path };
 local model = {
     type: "microbert2.microbert.model.model::microbert_model",
     tokenizer: tokenizer,
@@ -137,8 +144,6 @@ local training_engine = {
 local collate_fn = {
     type: "microbert2.data.collator::collator",
     tokenizer: tokenizer,
-    // whether to replace [MASK] with 10% UNK and 10% random. should be true for electra, false for bert
-    mask_only: false,
     tasks: tasks,
 };
 local train_dataloader = {

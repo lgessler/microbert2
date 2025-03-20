@@ -19,32 +19,6 @@ class MicroBERTEncoder(torch.nn.Module, Registrable):
     pass
 
 
-@torch.jit.script
-def _tied_generator_forward(hidden_states, embedding_weights):
-    hidden_states = torch.einsum("bsh,eh->bse", hidden_states, embedding_weights)
-    return hidden_states
-
-
-class TiedRobertaLMHead(nn.Module):
-    """Version of RobertaLMHead which accepts an embedding torch.nn.Parameter for output probabilities"""
-
-    def __init__(self, config, embedding_weights):
-        super().__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.embedding_weights = embedding_weights
-
-    def forward(self, features, **kwargs):
-        x = self.dense(features)
-        x = gelu(x)
-        x = self.layer_norm(x)
-
-        # project back to size of vocabulary with bias
-        x = _tied_generator_forward(x, self.embedding_weights)
-
-        return x
-
-
 @MicroBERTEncoder.register("bert")
 class BertEncoder(MicroBERTEncoder):
     def __init__(self, tokenizer: Tokenizer, bert_config: Dict[str, Any]):
@@ -55,17 +29,13 @@ class BertEncoder(MicroBERTEncoder):
         self.config = config
         self.encoder = BertModel(config=config, add_pooling_layer=False)
         self.tokenizer = tokenizer
-        self.head = TiedRobertaLMHead(config, self.encoder.embeddings.word_embeddings.weight)
 
     def forward(self, *args, **kwargs):
         return self.encoder(*args, return_dict=True, **kwargs)
 
-    def compute_loss(self, input_ids, attention_mask, token_type_ids, last_encoder_state, labels):
-        preds = self.head(last_encoder_state)
-        if not (labels != -100).any():
-            return 0.0
-        masked_lm_loss = F.cross_entropy(preds.view(-1, self.config.vocab_size), labels.view(-1), ignore_index=-100)
-        return {"mlm": masked_lm_loss}
+    @property
+    def embedding_weights(self):
+        return self.encoder.embeddings.word_embeddings.weight
 
 
 class TiedElectraGeneratorPredictions(nn.Module):

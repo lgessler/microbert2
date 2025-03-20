@@ -73,11 +73,10 @@ class MicroBERTModel(Model):
             **kwargs:
         """
         super().__init__()
-
         # a BERT-style Transformer encoder stack
         self.encoder = encoder
         self.tasks = tasks
-        self.task_heads = nn.ModuleList([task.head for task in tasks])
+        self.task_heads = nn.ModuleList([task.construct_head(self) for task in tasks])
         logger.info(f"Initialized MicroBERT model: {self}")
 
     def forward(
@@ -88,16 +87,15 @@ class MicroBERTModel(Model):
         token_type_ids,
         token_spans,
         dataset_id,
-        labels=None,
         **kwargs,
     ):
-        encoder_outputs: BaseModelOutputWithPoolingAndCrossAttentions = self.encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            output_hidden_states=True,
-            output_attentions=True,
-        )
+        # encoder_outputs: BaseModelOutputWithPoolingAndCrossAttentions = self.encoder(
+        #     input_ids=input_ids,
+        #     attention_mask=attention_mask,
+        #     token_type_ids=token_type_ids,
+        #     output_hidden_states=True,
+        #     output_attentions=True,
+        # )
 
         # Separate pass for the masked inputs
         masked_encoder_outputs: BaseModelOutputWithPoolingAndCrossAttentions = self.encoder(
@@ -108,7 +106,7 @@ class MicroBERTModel(Model):
             output_attentions=True,
         )
 
-        if labels is not None:
+        if self.training:
             outputs = {
                 "progress_items": {
                     "max_cuda_mb": torch.cuda.max_memory_allocated() / 1024**2,
@@ -116,40 +114,34 @@ class MicroBERTModel(Model):
                 }
             }
 
-            # MLM loss
-            head_loss = self.encoder.compute_loss(
-                input_ids, attention_mask, token_type_ids, masked_encoder_outputs.last_hidden_state, labels
-            )
-            loss = sum(head_loss.values())
-            outputs["mlm_loss"] = head_loss["mlm"]
-            outputs["progress_items"]["mlm_loss"] = head_loss["mlm"]
-            outputs["progress_items"]["perplexity"] = head_loss["mlm"].exp().item()
-
-            # Replaced token detection loss for electra (if using)
-            if "rtd" in head_loss:
-                outputs["progress_items"]["rtd_loss"] = head_loss["rtd"].item()
-
-            i = 1
-            for task in self.tasks:
-                indexes = dataset_id == i
+            loss = torch.tensor(0.0, device=input_ids.device)
+            for i, task in enumerate(self.tasks):
+                # Always MLM on everything, otherwise only use task-specific instances
+                indexes = dataset_id >= 0 if task.universal else dataset_id == i
                 if indexes.sum(0).item() == 0:
                     continue
+
                 task_args = {}
-                task_args["hidden"] = [h[indexes] for h in encoder_outputs.hidden_states]
+                # task_args["hidden"] = encoder_outputs.last_hidden_state[indexes]
                 task_args["hidden_masked"] = [h[indexes] for h in masked_encoder_outputs.hidden_states]
                 task_args["token_spans"] = token_spans[indexes]
+                # Add task-specific data
                 for k in task.data_keys:
                     task_args[k] = kwargs[k][indexes]
-                task_outputs = self.task_heads[i - 1](**task_args)
+
+                # Apply task head
+                task_outputs = self.task_heads[i](**task_args)
+
+                # Add task loss to total loss
+                outputs[task.slug + "_loss"] = task_outputs["loss"]
+                loss += task_outputs["loss"]
+
+                # Add task outputs to progress items
                 for k in task.progress_items:
                     if k in task_outputs:
                         outputs["progress_items"][task.slug + "_" + k] = task_outputs[k]
-                outputs[task.slug + "_loss"] = task_outputs["loss"]
-                loss += task_outputs["loss"]
-                i += 1
 
             outputs["loss"] = loss
-            outputs["perplexity"] = outputs["progress_items"]["perplexity"]
             return outputs
         else:
             return {}

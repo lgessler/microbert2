@@ -37,7 +37,7 @@ class XposHead(torch.nn.Module, FromParams):
 
     def forward(
         self,  # type: ignore
-        hidden: List[torch.Tensor],
+        hidden_masked: List[torch.Tensor],
         token_spans: torch.LongTensor,
         pos_label: Optional[torch.LongTensor] = None,
         **kwargs,
@@ -55,11 +55,11 @@ class XposHead(torch.nn.Module, FromParams):
             no_special_token_spans[i, c, :] = 0
 
         if self.use_layer_mix:
-            tokenwise_hidden_states = [pool_embeddings(h, no_special_token_spans) for h in hidden]
+            tokenwise_hidden_states = [pool_embeddings(h, no_special_token_spans) for h in hidden_masked]
             # Drop [SEP]
             hidden = self.mix(tokenwise_hidden_states)[:, :-1, :]
         else:
-            tokenwise_hidden_states = pool_embeddings(hidden[self.layer_index], no_special_token_spans)
+            tokenwise_hidden_states = pool_embeddings(hidden_masked[self.layer_index], no_special_token_spans)
             # Drop [SEP]
             hidden = tokenwise_hidden_states[:, :-1, :]
         logits = self.linear(hidden)
@@ -146,8 +146,7 @@ class UDPOSTask(MicroBERTTask, CustomDetHash):
     def slug(self):
         return "pos"
 
-    @property
-    def head(self):
+    def construct_head(self, model):
         return self._head.construct(num_tags=len(self._tags))
 
     @property
