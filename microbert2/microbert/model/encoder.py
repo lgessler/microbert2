@@ -11,7 +11,6 @@ from transformers.activations import gelu, get_activation
 
 from microbert2.common import dill_dump, dill_load
 
-
 logger = logging.getLogger(__name__)
 
 

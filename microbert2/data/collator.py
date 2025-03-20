@@ -7,8 +7,8 @@ from tango.integrations.transformers import Tokenizer
 from torch.nn.utils.rnn import pad_sequence
 from transformers import DataCollatorForLanguageModeling
 
-from microbert2.microbert.tasks.task import MicroBERTTask
 from microbert2.microbert.tasks.mlm import MLMTask
+from microbert2.microbert.tasks.task import MicroBERTTask
 
 
 @DataCollator.register("microbert2.data.collator::collator")

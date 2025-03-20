@@ -1,16 +1,17 @@
-from typing import Any, Literal
 import logging
+from typing import Any, Literal
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers.activations import gelu
-from transformers import DataCollatorForLanguageModeling
-
 from tango.common import Lazy
 from tango.integrations.transformers import Tokenizer
+from torch.nn.utils.rnn import pad_sequence
+from transformers import DataCollatorForLanguageModeling
+from transformers.activations import gelu
 
-from microbert2.microbert.tasks.task import MicroBERTTask
 from microbert2.microbert.model.model import Model
+from microbert2.microbert.tasks.task import MicroBERTTask
 
 logger = logging.getLogger(__name__)
 
@@ -54,14 +55,8 @@ class MLMTask(MicroBERTTask):
         self._dataset = dataset
         self.config = None
         self._head = None
-        self.tokenizer = tokenizer.construct()
-        self.collator = DataCollatorForLanguageModeling(
-            self.tokenizer,
-            mlm=True,
-            mlm_probability=0.15,
-            mask_replace_prob=1.0,
-            random_replace_prob=0.0,
-        )
+        self.collator = None
+        self.tokenizer = tokenizer
 
     @property
     def slug(self) -> str:
@@ -90,12 +85,18 @@ class MLMTask(MicroBERTTask):
         return 1.0
 
     def tensorify_data(self, key: str, value: Any) -> torch.Tensor:
+        if key == "labels":
+            return torch.tensor(value)
         raise ValueError(f"Unknown key: {key}")
 
     def collate_data(self, key: str, values: list[torch.Tensor]) -> torch.Tensor:
+        if key == "labels":
+            return pad_sequence(values, batch_first=True, padding_value=0)
         raise ValueError(f"Unknown key: {key}")
 
     def null_tensor(self, key) -> torch.Tensor:
+        if key == "labels":
+            return torch.tensor([0])
         raise ValueError(f"Unknown key: {key}")
 
     @property
@@ -103,5 +104,14 @@ class MLMTask(MicroBERTTask):
         return ["perplexity", "loss"]
 
     def mask_tokens(self, input_ids: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        if isinstance(self.tokenizer, Lazy):
+            self.tokenizer = self.tokenizer.construct()
+            self.collator = DataCollatorForLanguageModeling(
+                self.tokenizer,
+                mlm=True,
+                mlm_probability=0.15,
+                mask_replace_prob=1.0,
+                random_replace_prob=0.0,
+            )
         outputs = self.collator.torch_mask_tokens(input_ids)
         return outputs

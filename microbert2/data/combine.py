@@ -5,8 +5,8 @@ from itertools import chain, repeat
 import torch
 from tango import DillFormat, Step
 
-from microbert2.microbert.tasks.task import MicroBERTTask
 from microbert2.microbert.tasks.mlm import MLMTask
+from microbert2.microbert.tasks.task import MicroBERTTask
 
 
 def ncycles(iterable, n):
@@ -56,6 +56,9 @@ class CombineDatasets(Step):
 
             if task is not None:
                 for k in task.data_keys:
+                    # MLM labels are generated dynamically, so skip
+                    if k == "labels" and task.slug == "mlm":
+                        continue
                     result[k] = task.tensorify_data(k, row[k])
             return result
 
