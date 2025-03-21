@@ -106,49 +106,46 @@ class MicroBERTModel(Model):
             output_attentions=False,
         )
 
-        if self.training:
-            outputs = {
-                "progress_items": {
-                    "max_cuda_mb": torch.cuda.max_memory_allocated() / 1024**2,
-                    # "resident_memory_mb": psutil.Process().memory_info().rss / 1024**2,
-                }
+        outputs = {
+            "progress_items": {
+                "max_cuda_mb": torch.cuda.max_memory_allocated() / 1024**2,
+                # "resident_memory_mb": psutil.Process().memory_info().rss / 1024**2,
             }
+        }
 
-            loss = torch.tensor(0.0, device=input_ids.device)
-            for i, task in enumerate(self.tasks):
-                indexes = dataset_id >= 0 if task.universal else dataset_id == i
-                if indexes.sum(0).item() == 0:
-                    continue
+        loss = torch.tensor(0.0, device=input_ids.device)
+        for i, task in enumerate(self.tasks):
+            indexes = dataset_id >= 0 if task.universal else dataset_id == i
+            if indexes.sum(0).item() == 0:
+                continue
 
-                task_args = {}
-                # task_args["hidden"] = encoder_outputs.last_hidden_state[indexes]
-                task_args["hidden_masked"] = [h[indexes] for h in masked_encoder_outputs.hidden_states]
-                task_args["token_spans"] = token_spans[indexes]
-                # Add everything in kwargs by default--could use task.data_keys instead
-                for k in kwargs.keys():
-                    task_args[k] = kwargs[k][indexes]
-                # Also add encoder and original inputs
-                task_args["encoder"] = self.encoder
-                task_args["input_ids"] = input_ids[indexes]
-                task_args["attention_mask"] = attention_mask[indexes]
-                task_args["token_type_ids"] = token_type_ids[indexes]
+            task_args = {}
+            # task_args["hidden"] = encoder_outputs.last_hidden_state[indexes]
+            task_args["hidden_masked"] = [h[indexes] for h in masked_encoder_outputs.hidden_states]
+            task_args["token_spans"] = token_spans[indexes]
+            # Add everything in kwargs by default--could use task.data_keys instead
+            for k in kwargs.keys():
+                task_args[k] = kwargs[k][indexes]
+            # Also add encoder and original inputs
+            task_args["encoder"] = self.encoder
+            task_args["input_ids"] = input_ids[indexes]
+            task_args["attention_mask"] = attention_mask[indexes]
+            task_args["token_type_ids"] = token_type_ids[indexes]
 
-                # Apply task head
-                task_outputs = self.task_heads[i](**task_args)
+            # Apply task head
+            task_outputs = self.task_heads[i](**task_args)
 
-                # Add task loss to total loss
-                outputs[task.slug + "_loss"] = task_outputs["loss"]
-                loss += task_outputs["loss"]
+            # Add task loss to total loss
+            outputs[task.slug + "_loss"] = task_outputs["loss"]
+            loss += task_outputs["loss"]
 
-                # Add task outputs to progress items
-                for k in task.progress_items:
-                    if k in task_outputs:
-                        outputs["progress_items"][task.slug + "_" + k] = task_outputs[k]
+            # Add task outputs to progress items
+            for k in task.progress_items:
+                if k in task_outputs:
+                    outputs["progress_items"][task.slug + "_" + k] = task_outputs[k]
 
-            outputs["loss"] = loss
-            return outputs
-        else:
-            return {}
+        outputs["loss"] = loss
+        return outputs
 
 
 @TrainCallback.register("microbert2.microbert.model.model::write_model")
