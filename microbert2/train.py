@@ -373,6 +373,7 @@ def _train(
         initial_state = training_engine.load_checkpoint(config.state_path)
     if torch.mps.is_available():
         device = torch.device("mps")
+        training_engine.train_config._worker_local_default_device = device
     else:
         device = config.worker_local_default_device
 

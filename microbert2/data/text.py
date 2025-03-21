@@ -43,6 +43,7 @@ class ReadWhitespaceTokenizedText(Step):
     Each split is a list of instances, where each instance is a dictionary with a "tokens" key.
     Stanza may also be used to retokenize the text.
     """
+
     DETERMINISTIC = True
     CACHEABLE = True
     FORMAT = DillFormat()
