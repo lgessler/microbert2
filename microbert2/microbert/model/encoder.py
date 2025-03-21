@@ -66,6 +66,12 @@ class ModernBertEncoder(MicroBERTEncoder):
         return self.encoder.embeddings.tok_embeddings.weight
 
 
+@torch.jit.script
+def _tied_generator_forward(hidden_states, embedding_weights):
+    hidden_states = torch.einsum("bsh,eh->bse", hidden_states, embedding_weights)
+    return hidden_states
+
+
 class TiedElectraGeneratorPredictions(nn.Module):
     """Like ElectraGeneratorPredictions, but accepts a torch.nn.Parameter from an embedding module"""
 
