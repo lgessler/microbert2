@@ -116,7 +116,6 @@ class MicroBERTModel(Model):
 
             loss = torch.tensor(0.0, device=input_ids.device)
             for i, task in enumerate(self.tasks):
-                # Always MLM on everything, otherwise only use task-specific instances
                 indexes = dataset_id >= 0 if task.universal else dataset_id == i
                 if indexes.sum(0).item() == 0:
                     continue
@@ -125,9 +124,14 @@ class MicroBERTModel(Model):
                 # task_args["hidden"] = encoder_outputs.last_hidden_state[indexes]
                 task_args["hidden_masked"] = [h[indexes] for h in masked_encoder_outputs.hidden_states]
                 task_args["token_spans"] = token_spans[indexes]
-                # Add everything by default--could use task.data_keys instead
+                # Add everything in kwargs by default--could use task.data_keys instead
                 for k in kwargs.keys():
                     task_args[k] = kwargs[k][indexes]
+                # Also add encoder and original inputs
+                task_args["encoder"] = self.encoder
+                task_args["input_ids"] = input_ids[indexes]
+                task_args["attention_mask"] = attention_mask[indexes]
+                task_args["token_type_ids"] = token_type_ids[indexes]
 
                 # Apply task head
                 task_outputs = self.task_heads[i](**task_args)

@@ -66,29 +66,6 @@ class ModernBertEncoder(MicroBERTEncoder):
         return self.encoder.embeddings.tok_embeddings.weight
 
 
-@torch.jit.script
-def _tied_generator_forward(hidden_states, embedding_weights):
-    hidden_states = torch.einsum("bsh,eh->bse", hidden_states, embedding_weights)
-    return hidden_states
-
-
-class TiedElectraGeneratorPredictions(nn.Module):
-    """Like ElectraGeneratorPredictions, but accepts a torch.nn.Parameter from an embedding module"""
-
-    def __init__(self, config, embedding_weights):
-        super().__init__()
-
-        self.LayerNorm = nn.LayerNorm(config.vocab_size, eps=config.layer_norm_eps)
-        self.embedding_weights = embedding_weights
-
-    def forward(self, generator_hidden_states):
-        hidden_states = _tied_generator_forward(generator_hidden_states, self.embedding_weights)
-        hidden_states = get_activation("gelu")(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states)
-
-        return hidden_states
-
-
 @MicroBERTEncoder.register("electra")
 class ElectraEncoder(MicroBERTEncoder):
     """
@@ -112,7 +89,6 @@ class ElectraEncoder(MicroBERTEncoder):
         # the model we want to save will be available under that attribute.
         self.discriminator = ElectraModel(config=config)
         self.encoder = self.discriminator
-        self.discriminator_head = torch.nn.Linear(config.hidden_size, 1)
 
         # Make the generator--this is the same as the discriminator if we're tying them, otherwise
         # an identical copy of the ElectraModel and tie their embedding layers. These are two approaches
@@ -123,55 +99,13 @@ class ElectraEncoder(MicroBERTEncoder):
         else:
             self.generator = ElectraModel(config=config)
             self.generator.embeddings = self.discriminator.embeddings
-        # Also tie the output embeddings to the input embeddings
-        self.generator_head = TiedElectraGeneratorPredictions(config, self.generator.embeddings.word_embeddings.weight)
 
     def forward(self, *args, **kwargs):
         return self.generator(*args, **kwargs)
 
-    def compute_loss(self, input_ids, attention_mask, token_type_ids, last_hidden_state, labels):
-        """
-        Used to compute discriminator's loss
-        """
-        mlm_logits = self.generator_head(last_hidden_state)
-        if not (labels != -100).any():
-            masked_lm_loss = 0.0
-        else:
-            masked_lm_loss = F.cross_entropy(
-                mlm_logits.view(-1, self.config.vocab_size), labels.view(-1), ignore_index=-100
-            )
-
-        # Take predicted token IDs. Note that argmax() breaks the gradient chain, so the generator only learns from MLM
-        mlm_preds = mlm_logits.argmax(-1)
-        # Combine them to get labels for discriminator
-        replaced = (~input_ids.eq(mlm_preds)) & (labels != -100)
-
-        # Make inputs for discriminator, feed them into the encoder once more, then feed to discriminator head
-        replaced_input_ids = torch.where(replaced, mlm_preds, input_ids)
-        second_encoder_output = self.discriminator(
-            input_ids=replaced_input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-        )
-        discriminator_output = self.discriminator_head(second_encoder_output.last_hidden_state).squeeze(-1)
-
-        # compute replaced token detection BCE loss on eligible tokens (all non-special tokens)
-        bce_mask = (
-            (replaced_input_ids != self.tokenizer.cls_token_id)
-            & (replaced_input_ids != self.tokenizer.sep_token_id)
-            & (replaced_input_ids != self.tokenizer.pad_token_id)
-        )
-        rtd_preds = torch.masked_select(discriminator_output, bce_mask)
-        rtd_labels = torch.masked_select(replaced.float(), bce_mask)
-        rtd_loss = F.binary_cross_entropy_with_logits(rtd_preds, rtd_labels)
-
-        # dill_dump(input_ids, '/tmp/input_ids')
-        # dill_dump(attention_mask, '/tmp/attention_mask')
-        # dill_dump(token_type_ids, '/tmp/token_type_ids')
-        # dill_dump(last_hidden_state, '/tmp/last_hidden_state')
-        # dill_dump(labels, '/tmp/labels')
-        # dill_dump(self, '/tmp/self')
-        return {"rtd": (50 * rtd_loss), "mlm": masked_lm_loss}
+    @property
+    def embedding_weights(self):
+        return self.discriminator.embeddings.word_embeddings.weight
 
 
 def tmp():
