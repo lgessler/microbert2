@@ -55,7 +55,7 @@ local validate_every = 1000;  // in steps
 // Optimizer ----------------------------------------------------------------------
 local optimizer = {
     type: "torch::AdamW",
-    lr: 3e-4,
+    lr: 1e-4,
     betas: [0.9, 0.98],
     eps: 1e-6,
     weight_decay: 0.01
@@ -92,26 +92,7 @@ local pos_task = {
     dev_conllu_path: dev_conllu_path,
     test_conllu_path: test_conllu_path,
 };
-local parser = {
-    input_dim: hidden_size,
-    num_layers: num_layers + 1,
-    pos_tag_embedding_dim: 64,
-    //encoder: { type: "pass_through", "input_dim": hidden_size + 64 },
-    encoder: {
-      type: "pytorch_transformer",
-      input_dim: hidden_size + 64,
-      num_layers: 1,
-      feedforward_hidden_dim: 512,
-      num_attention_heads: 8,
-      positional_encoding: "sinusoidal",
-      positional_embedding_size: hidden_size + 64,
-    },
-    tag_representation_dim: 50,
-    arc_representation_dim: 50,
-    layer_index: 2,
-    use_layer_mix: false,
-    initializer: import "lib/parser_initializer.libsonnet",
-};
+local parser = (import "lib/parser.libsonnet")(hidden_size, num_layers);
 local parse_task = {
     type: "microbert2.microbert.tasks.ud_parse.UDParseTask",
     head: parser,
