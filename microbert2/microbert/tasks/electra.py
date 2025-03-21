@@ -83,7 +83,7 @@ class ElectraHead(nn.Module):
 
         return {
             "rtd_loss": rtd_loss,
-            "rtd_acc": (rtd_preds.round() == rtd_labels).float().mean(),
+            "rtd_acc": (rtd_preds.round() == rtd_labels).float().mean() * 100,
             "mlm_loss": masked_lm_loss,
             "perplexity": torch.exp(masked_lm_loss),
             "loss": (50 * rtd_loss) + masked_lm_loss,
