@@ -38,7 +38,7 @@ local bert_config = {
     hidden_size: hidden_size,
     num_hidden_layers: num_layers,
     num_attention_heads: 4,
-    intermediate_size: 512,
+    intermediate_size: hidden_size + hidden_size / 2,
     max_position_embeddings: max_length,
     attention_dropout: 0.1,
     embedding_dropout: 0.1,
