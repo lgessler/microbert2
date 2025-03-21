@@ -43,6 +43,7 @@ local bert_config = {
     attention_dropout: 0.1,
     embedding_dropout: 0.1,
     mlp_dropout: 0.1,
+    global_attn_every_n_layers: 2,
 };
 
 // Training -----------------------------------------------------------------------
