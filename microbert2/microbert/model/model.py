@@ -103,7 +103,7 @@ class MicroBERTModel(Model):
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
             output_hidden_states=True,
-            output_attentions=True,
+            output_attentions=False,
         )
 
         if self.training:
