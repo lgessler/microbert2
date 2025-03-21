@@ -46,6 +46,7 @@ class ElectraHead(nn.Module):
         self.generator_head = TiedElectraGeneratorPredictions(config, embedding_weights)
         self.discriminator_head = nn.Linear(config.hidden_size, 1)
         self.vocab_size = config.vocab_size
+        self.temperature = 1.0
 
     def forward(self, hidden_masked, input_ids, attention_mask, token_type_ids, labels, encoder, **kwargs):
         # Generate MLM predictions using last layer
@@ -57,7 +58,19 @@ class ElectraHead(nn.Module):
             masked_lm_loss = F.cross_entropy(mlm_logits.view(-1, self.vocab_size), labels.view(-1), ignore_index=-100)
 
         # Take predicted token IDs
-        mlm_preds = mlm_logits.argmax(-1)
+        # mlm_preds = mlm_logits.argmax(-1)
+        mlm_probs = F.softmax(mlm_logits, dim=-1)
+
+        # Optional: Apply temperature to control randomness
+        if self.temperature != 1.0:
+            mlm_probs = mlm_probs.pow(1.0 / self.temperature)
+            mlm_probs = mlm_probs / mlm_probs.sum(dim=-1, keepdim=True)
+
+        # Sample from the distribution
+        mlm_preds = torch.multinomial(
+            mlm_probs.reshape(-1, self.vocab_size),
+            num_samples=1,
+        ).reshape(mlm_probs.size(0), -1)
 
         # Combine them to get labels for discriminator
         replaced = (~input_ids.eq(mlm_preds)) & (labels != -100)
