@@ -195,7 +195,7 @@ local val_dataloader = {
             train_steps: num_steps,
             grad_accum: grad_accum,
             validate_every: validate_every,
-            checkpoint_every: validate_every,
+            checkpoint_every: 100,
             validation_split: "dev",
             validation_dataloader: val_dataloader,
             // val_metric_name: "perplexity",
