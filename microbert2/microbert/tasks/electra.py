@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tango.common import Lazy
 from tango.integrations.transformers import Tokenizer
-from transformers.activations import get_activation
+from transformers.activations import gelu
 
 from microbert2.microbert.model.model import Model
 from microbert2.microbert.tasks.task import MicroBERTTask
@@ -31,7 +31,7 @@ class TiedElectraGeneratorPredictions(nn.Module):
 
     def forward(self, generator_hidden_states):
         hidden_states = _tied_generator_forward(generator_hidden_states, self.embedding_weights)
-        hidden_states = get_activation("gelu")(hidden_states)
+        hidden_states = gelu(hidden_states)
         hidden_states = self.LayerNorm(hidden_states)
 
         return hidden_states
