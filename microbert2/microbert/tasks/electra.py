@@ -40,13 +40,14 @@ class TiedElectraGeneratorPredictions(nn.Module):
 class ElectraHead(nn.Module):
     """Head for the ELECTRA task"""
 
-    def __init__(self, config, tokenizer, embedding_weights):
+    def __init__(self, config, tokenizer, embedding_weights, temperature=1.0, rtd_weight=50):
         super().__init__()
         self.tokenizer = tokenizer
         self.generator_head = TiedElectraGeneratorPredictions(config, embedding_weights)
         self.discriminator_head = nn.Linear(config.hidden_size, 1)
         self.vocab_size = config.vocab_size
-        self.temperature = 1.0
+        self.temperature = temperature
+        self.rtd_weight = rtd_weight
 
     def forward(self, hidden_masked, input_ids, attention_mask, token_type_ids, labels, encoder, **kwargs):
         # Generate MLM predictions using last layer
@@ -109,7 +110,7 @@ class ElectraHead(nn.Module):
             "rtd_acc": (rtd_preds.round() == rtd_labels).float().mean() * 100,
             "mlm_loss": masked_lm_loss,
             "perplexity": torch.exp(masked_lm_loss),
-            "loss": (50 * rtd_loss) + masked_lm_loss,
+            "loss": (self.rtd_weight * rtd_loss) + masked_lm_loss,
         }
 
 

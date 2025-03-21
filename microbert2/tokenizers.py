@@ -10,6 +10,7 @@ from tokenizers.models import BPE, WordPiece
 from tokenizers.normalizers import NFD, Lowercase, Sequence, StripAccents
 from tokenizers.pre_tokenizers import Whitespace
 from tokenizers.processors import TemplateProcessing
+
 # https://huggingface.co/docs/tokenizers/python/latest/pipeline.html
 from tokenizers.trainers import BpeTrainer, WordPieceTrainer
 from transformers import BertTokenizer, BertTokenizerFast
