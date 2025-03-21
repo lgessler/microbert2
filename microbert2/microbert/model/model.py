@@ -108,7 +108,7 @@ class MicroBERTModel(Model):
 
         outputs = {
             "progress_items": {
-                "max_cuda_mb": torch.cuda.max_memory_allocated() / 1024**2,
+                # "max_cuda_mb": torch.cuda.max_memory_allocated() / 1024**2,
                 # "resident_memory_mb": psutil.Process().memory_info().rss / 1024**2,
             }
         }
