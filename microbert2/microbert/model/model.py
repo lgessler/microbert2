@@ -125,8 +125,8 @@ class MicroBERTModel(Model):
                 # task_args["hidden"] = encoder_outputs.last_hidden_state[indexes]
                 task_args["hidden_masked"] = [h[indexes] for h in masked_encoder_outputs.hidden_states]
                 task_args["token_spans"] = token_spans[indexes]
-                # Add task-specific data
-                for k in task.data_keys:
+                # Add everything by default--could use task.data_keys instead
+                for k in kwargs.keys():
                     task_args[k] = kwargs[k][indexes]
 
                 # Apply task head

@@ -72,7 +72,7 @@ class MLMTask(MicroBERTTask):
 
     @property
     def data_keys(self) -> list[str]:
-        return ["labels"]
+        return []
 
     def construct_head(self, model):
         embedding_weights = model.encoder.embedding_weights
@@ -85,25 +85,19 @@ class MLMTask(MicroBERTTask):
         return 1.0
 
     def tensorify_data(self, key: str, value: Any) -> torch.Tensor:
-        if key == "labels":
-            return torch.tensor(value)
         raise ValueError(f"Unknown key: {key}")
 
     def collate_data(self, key: str, values: list[torch.Tensor]) -> torch.Tensor:
-        if key == "labels":
-            return pad_sequence(values, batch_first=True, padding_value=0)
         raise ValueError(f"Unknown key: {key}")
 
     def null_tensor(self, key) -> torch.Tensor:
-        if key == "labels":
-            return torch.tensor([0])
         raise ValueError(f"Unknown key: {key}")
 
     @property
     def progress_items(self) -> list[str]:
         return ["perplexity", "loss"]
 
-    def mask_tokens(self, input_ids: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def _mask_tokens(self, input_ids: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         if isinstance(self.tokenizer, Lazy):
             self.tokenizer = self.tokenizer.construct()
             self.collator = DataCollatorForLanguageModeling(
@@ -115,3 +109,10 @@ class MLMTask(MicroBERTTask):
             )
         outputs = self.collator.torch_mask_tokens(input_ids)
         return outputs
+
+    def transform_collator_output(self, output: dict[str, Any]) -> dict[str, Any]:
+        if "input_ids" in output:
+            masked, labels = self._mask_tokens(output["input_ids"])
+            output["input_ids_masked"] = masked
+            output["labels"] = labels
+        return output

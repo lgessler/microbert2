@@ -33,6 +33,16 @@ class MicroBERTTask(Registrable):
         raise NotImplemented()
 
     @property
+    def inst_proportion(self) -> float:
+        """
+        Number of instances from this task's dataset to include in the combined training dataset,
+        relative to the number of training instances. For example, if there were 500 training sentences
+        and this value were 0.1, there would be 50 instances from this dataset in the final training
+        dataset.
+        """
+        raise NotImplemented()
+
+    @property
     def data_keys(self) -> list[str]:
         """
         A list of string keys describing what is available on each instance. Do NOT include "tokens",
@@ -71,22 +81,20 @@ class MicroBERTTask(Registrable):
         """
         raise NotImplemented()
 
-    @property
-    def inst_proportion(self) -> float:
-        """
-        Number of instances from this task's dataset to include in the combined training dataset,
-        relative to the number of training instances. For example, if there were 500 training sentences
-        and this value were 0.1, there would be 50 instances from this dataset in the final training
-        dataset.
-        """
-        raise NotImplemented()
-
     def null_tensor(self, key) -> torch.Tensor:
         """
         Return an empty tensor for the given key that will be used for insts that do not belong
         to this dataset. For most things, this should be 0.
         """
         raise NotImplemented()
+
+    def transform_collator_output(self, output: dict[str, Any]) -> dict[str, Any]:
+        """
+        Executed on the finished output of the collator. Useful for dynamic data transformations
+        such as masking for masked language modeling. Any new keys which are put into `output`
+        should NOT be included in `data_keys`. Defaults to no-op.
+        """
+        return output
 
     @property
     def progress_items(self) -> list[str]:

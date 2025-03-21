@@ -56,9 +56,6 @@ class CombineDatasets(Step):
 
             if task is not None:
                 for k in task.data_keys:
-                    # MLM labels are generated dynamically, so skip
-                    if k == "labels" and task.slug == "mlm":
-                        continue
                     result[k] = task.tensorify_data(k, row[k])
             return result
 
