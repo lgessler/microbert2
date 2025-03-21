@@ -91,13 +91,13 @@ class ElectraHead(nn.Module):
             & (replaced_input_ids != self.tokenizer.sep_token_id)
             & (replaced_input_ids != self.tokenizer.pad_token_id)
         )
-        rtd_preds = torch.masked_select(discriminator_output, bce_mask)
+        rtd_logits = torch.masked_select(discriminator_output, bce_mask)
         rtd_labels = torch.masked_select(replaced.float(), bce_mask)
-        rtd_loss = F.binary_cross_entropy_with_logits(rtd_preds, rtd_labels)
+        rtd_loss = F.binary_cross_entropy_with_logits(rtd_logits, rtd_labels)
 
         return {
             "rtd_loss": rtd_loss,
-            "rtd_acc": (rtd_preds.round() == rtd_labels).float().mean() * 100,
+            "rtd_acc": (rtd_logits.ge(0) == rtd_labels).float().mean() * 100,
             "mlm_loss": masked_lm_loss,
             "perplexity": torch.exp(masked_lm_loss),
             "loss": (self.rtd_weight * rtd_loss) + masked_lm_loss,
