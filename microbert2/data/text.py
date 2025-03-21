@@ -38,6 +38,11 @@ def retokenize(step, pipeline, stanza_use_mwt, sentences, path):
 
 @Step.register("microbert2.data.text::read_whitespace_tokenized_text")
 class ReadWhitespaceTokenizedText(Step):
+    """
+    Reads whitespace-tokenized text from a file and returns a dictionary with train, dev, and test keys.
+    Each split is a list of instances, where each instance is a dictionary with a "tokens" key.
+    Stanza may also be used to retokenize the text.
+    """
     DETERMINISTIC = True
     CACHEABLE = True
     FORMAT = DillFormat()
