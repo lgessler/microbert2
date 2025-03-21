@@ -371,7 +371,10 @@ def _train(
         if config.is_local_main_process:
             logger.info(f"Recovering from previous run at {str(config.state_path.resolve())}")
         initial_state = training_engine.load_checkpoint(config.state_path)
-    device = config.worker_local_default_device
+    if torch.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = config.worker_local_default_device
 
     # Construct data loaders.
     validation_dataloader_: Optional[DataLoader] = None
