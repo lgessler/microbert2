@@ -36,9 +36,9 @@ class MicroBERTTask(Registrable):
     def inst_proportion(self) -> float:
         """
         Number of instances from this task's dataset to include in the combined training dataset,
-        relative to the number of training instances. For example, if there were 500 training sentences
-        and this value were 0.1, there would be 50 instances from this dataset in the final training
-        dataset.
+        relative to the number of training instances in the first task. For example, if there were
+        500 training sentences in the first task and this value were 0.1, there would be 50 instances
+        from this dataset in the final training dataset. This value is ignored for the first task.
         """
         raise NotImplemented()
 

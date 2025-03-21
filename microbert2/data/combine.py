@@ -5,7 +5,6 @@ from itertools import chain, repeat
 import torch
 from tango import DillFormat, Step
 
-from microbert2.microbert.tasks.mlm import MLMTask
 from microbert2.microbert.tasks.task import MicroBERTTask
 
 
@@ -39,12 +38,16 @@ class CombineDatasets(Step):
         datasets: list[dict],
         tasks: list[MicroBERTTask] = [],
     ) -> dict:
+        if not tasks[0].slug == "mlm":
+            self.logger.warning(f"First task is not MLM--is this intentional? Task: {tasks[0].slug}")
+            import time
+
+            time.sleep(10)
 
         base_inst = {}
         for task in tasks:
             for k in task.data_keys:
                 base_inst[k] = task.null_tensor(k)
-        assert isinstance(tasks[0], MLMTask), "First task must be MLMTask"
 
         def process_row(row, task, task_index):
             result = base_inst.copy()
@@ -67,10 +70,11 @@ class CombineDatasets(Step):
                 if split == "train":
                     self.logger.info(f"\n\nFirst train instance for {task.slug}: {insts[0]}")
                 base_dataset = [process_row(v, task, i) for v in insts]
-                if split == "train" and i > 0:  # Skip scaling for MLM task (i=0)
-                    # Scale based on MLM dataset size
-                    mlm_size = len(datasets[0]["train"])
-                    scaled_dataset = rescale(base_dataset, mlm_size * task.inst_proportion)
+
+                # Scale all tasks which are not the first one, which will usually be MLM
+                if split == "train" and i > 0:
+                    first_task_size = len(datasets[0]["train"])
+                    scaled_dataset = rescale(base_dataset, first_task_size * task.inst_proportion)
                     self.logger.info(
                         f"Rescaled train split for {task.slug} from {len(base_dataset)} to {len(scaled_dataset)}"
                     )

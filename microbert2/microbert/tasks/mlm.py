@@ -49,7 +49,12 @@ class TiedRobertaLMHead(nn.Module):
 @MicroBERTTask.register("microbert2.microbert.tasks.mlm.MLMTask")
 class MLMTask(MicroBERTTask):
     def __init__(
-        self, dataset: dict[Literal["train", "dev", "test"], list[dict[str, Any]]], tokenizer: Lazy[Tokenizer]
+        self,
+        dataset: dict[Literal["train", "dev", "test"], list[dict[str, Any]]],
+        tokenizer: Lazy[Tokenizer],
+        mlm_probability: float = 0.15,
+        mlm_mask_replace_prob: float = 1.0,
+        mlm_random_replace_prob: float = 0.0,
     ):
         super().__init__()
         self._dataset = dataset
@@ -57,6 +62,9 @@ class MLMTask(MicroBERTTask):
         self._head = None
         self.collator = None
         self.tokenizer = tokenizer
+        self.mlm_probability = mlm_probability
+        self.mask_replace_prob = mlm_mask_replace_prob
+        self.random_replace_prob = mlm_random_replace_prob
 
     @property
     def slug(self) -> str:
@@ -103,9 +111,9 @@ class MLMTask(MicroBERTTask):
             self.collator = DataCollatorForLanguageModeling(
                 self.tokenizer,
                 mlm=True,
-                mlm_probability=0.15,
-                mask_replace_prob=1.0,
-                random_replace_prob=0.0,
+                mlm_probability=self.mlm_probability,
+                mask_replace_prob=self.mask_replace_prob,
+                random_replace_prob=self.random_replace_prob,
             )
         outputs = self.collator.torch_mask_tokens(input_ids)
         return outputs
