@@ -67,6 +67,8 @@ class CombineDatasets(Step):
         for i, (task, dataset) in enumerate(zip(tasks, datasets)):
             task_dataset = {}
             for split, insts in dataset.items():
+                if split == "train":
+                    self.logger.info(f"\n\nFirst train instance for {task.slug}: {insts[0]}")
                 base_dataset = [process_row(v, task, i) for v in insts]
                 if split == "train" and i > 0:  # Skip scaling for MLM task (i=0)
                     # Scale based on MLM dataset size
