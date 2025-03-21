@@ -51,7 +51,6 @@ class ElectraHead(nn.Module):
         # Generate MLM predictions using last layer
         hidden_masked = hidden_masked[-1]
         mlm_logits = self.generator_head(hidden_masked)
-
         if not (labels != -100).any():
             masked_lm_loss = torch.tensor(0.0, device=hidden_masked.device)
         else:
@@ -82,7 +81,13 @@ class ElectraHead(nn.Module):
         rtd_labels = torch.masked_select(replaced.float(), bce_mask)
         rtd_loss = F.binary_cross_entropy_with_logits(rtd_preds, rtd_labels)
 
-        return {"rtd_loss": rtd_loss, "mlm_loss": masked_lm_loss, "loss": (50 * rtd_loss) + masked_lm_loss}
+        return {
+            "rtd_loss": rtd_loss,
+            "rtd_acc": (rtd_preds.round() == rtd_labels).float().mean(),
+            "mlm_loss": masked_lm_loss,
+            "perplexity": torch.exp(masked_lm_loss),
+            "loss": (50 * rtd_loss) + masked_lm_loss,
+        }
 
 
 @MicroBERTTask.register("microbert2.microbert.tasks.electra.ElectraTask")
@@ -148,7 +153,7 @@ class ElectraTask(MicroBERTTask):
 
     @property
     def progress_items(self) -> list[str]:
-        return ["rtd_loss", "mlm_loss", "loss"]
+        return ["loss", "rtd_acc", "perplexity"]
 
     def _mask_tokens(self, input_ids: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         from transformers import DataCollatorForLanguageModeling
