@@ -25,15 +25,15 @@ class TiedElectraGeneratorPredictions(nn.Module):
 
     def __init__(self, config, embedding_weights):
         super().__init__()
-
-        self.LayerNorm = nn.LayerNorm(config.vocab_size, eps=1e-12)
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=1e-12)
         self.embedding_weights = embedding_weights
 
-    def forward(self, generator_hidden_states):
-        hidden_states = _tied_generator_forward(generator_hidden_states, self.embedding_weights)
+    def forward(self, hidden_states):
+        hidden_states = self.dense(hidden_states)
         hidden_states = gelu(hidden_states)
         hidden_states = self.LayerNorm(hidden_states)
-
+        hidden_states = _tied_generator_forward(hidden_states, self.embedding_weights)
         return hidden_states
 
 
@@ -61,6 +61,16 @@ class ElectraHead(nn.Module):
 
         # Combine them to get labels for discriminator
         replaced = (~input_ids.eq(mlm_preds)) & (labels != -100)
+
+        # Exit early if no replacements were made
+        if not replaced.any().item():
+            return {
+                "rtd_loss": torch.tensor(0.0, device=hidden_masked.device),
+                "rtd_acc": torch.tensor(0.0, device=hidden_masked.device),
+                "mlm_loss": masked_lm_loss,
+                "perplexity": torch.exp(masked_lm_loss),
+                "loss": masked_lm_loss,
+            }
 
         # Make inputs for discriminator, feed them into the encoder once more
         replaced_input_ids = torch.where(replaced, mlm_preds, input_ids)
