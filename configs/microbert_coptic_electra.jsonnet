@@ -195,7 +195,7 @@ local val_dataloader = {
             checkpoint_every: 100,
             validation_split: "dev",
             validation_dataloader: val_dataloader,
-            // val_metric_name: "perplexity",
+            val_metric_name: "electra_perplexity",
             // minimize_val_metric: true,
             callbacks: [
                 {
