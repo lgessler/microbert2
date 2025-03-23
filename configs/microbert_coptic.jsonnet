@@ -50,7 +50,7 @@ local bert_config = {
 local batch_size = 256;
 local grad_accum = 1;
 local effective_batch_size = grad_accum * batch_size;
-local num_steps = 5e4;
+local num_steps = 1e5;
 local validate_every = 1000;  // in steps
 
 // Optimizer ----------------------------------------------------------------------
@@ -63,7 +63,7 @@ local optimizer = {
 };
 local lr_scheduler = {
     type: "transformers::cosine",
-    num_warmup_steps: validate_every * 1,
+    num_warmup_steps: num_steps * 0.1,
     num_training_steps: num_steps,
 };
 
@@ -123,7 +123,8 @@ local training_engine = {
     type: "torch",
     optimizer: optimizer,
     lr_scheduler: lr_scheduler,
-    amp: false
+    amp: false,
+    max_grad_norm: 1.0,
 };
 
 local collate_fn = {
