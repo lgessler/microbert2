@@ -4,7 +4,7 @@
 local language = "coptic";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "mx_modern";
+local experiment_name = "mx_repro";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -30,8 +30,8 @@ local test_conllu_path = "data/cop/cop_scriptorium-ud-test.conllu";
 
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
-local hidden_size = 128;
-local num_layers = 4;
+local hidden_size = 100;
+local num_layers = 3;
 // Type of encoder stack. See microbert2/microbert/model/encoder.py for implementations.
 local bert_type = "bert";
 // local bert_type = "modernbert";
@@ -44,12 +44,9 @@ local bert_type = "bert";
 local bert_config = {
     hidden_size: hidden_size,
     num_hidden_layers: num_layers,
-    num_attention_heads: 4,
-    intermediate_size: hidden_size + hidden_size / 2,
+    num_attention_heads: 5,
+    intermediate_size: std.floor(hidden_size * 2.5),
     max_position_embeddings: max_length,
-    attention_dropout: 0.1,
-    embedding_dropout: 0.1,
-    mlp_dropout: 0.1,
     global_attn_every_n_layers: 2,
 };
 
@@ -57,21 +54,15 @@ local bert_config = {
 local batch_size = 256;
 local grad_accum = 1;
 local effective_batch_size = grad_accum * batch_size;
-local num_steps = 1e5;
-local validate_every = 1000;  // in steps
+// local num_steps = 1e5;
+local num_epochs = 200;
 
 local optimizer = {
     type: "torch::AdamW",
-    lr: 1e-4,
-    betas: [0.9, 0.98],
+    lr: 3e-3,
+    betas: [0.9, 0.999],
     eps: 1e-6,
-    weight_decay: 0.01
-};
-
-local lr_scheduler = {
-    type: "transformers::cosine",
-    num_warmup_steps: num_steps * 0.1,
-    num_training_steps: num_steps,
+    weight_decay: 0.05
 };
 
 // Some set up, don't modify ------------------------------------------------------
@@ -132,7 +123,6 @@ local model = {
 local training_engine = {
     type: "torch",
     optimizer: optimizer,
-    lr_scheduler: lr_scheduler,
     amp: false,
     max_grad_norm: 1.0,
 };
@@ -202,10 +192,8 @@ local val_dataloader = {
             training_engine: training_engine,
             log_every: 1,
             train_dataloader: train_dataloader,
-            //train_epochs: num_epochs,
-            train_steps: num_steps,
+            train_epochs: num_epochs,
             grad_accum: grad_accum,
-            validate_every: validate_every,
             checkpoint_every: 100,
             validation_split: "dev",
             validation_dataloader: val_dataloader,
