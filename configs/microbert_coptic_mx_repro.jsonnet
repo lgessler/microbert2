@@ -47,7 +47,6 @@ local bert_config = {
     num_attention_heads: 5,
     intermediate_size: std.floor(hidden_size * 2.5),
     max_position_embeddings: max_length,
-    global_attn_every_n_layers: 2,
 };
 
 // Training and Optimization ------------------------------------------------------
