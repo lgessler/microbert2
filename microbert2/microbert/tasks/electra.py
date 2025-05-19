@@ -54,7 +54,7 @@ class ElectraHead(nn.Module):
         hidden_masked = hidden_masked[-1]
         mlm_logits = self.generator_head(hidden_masked)
         if not (labels != -100).any():
-            masked_lm_loss = torch.tensor(0.0, device=hidden_masked.device)
+            masked_lm_loss = torch.tensor(0.0, device=hidden_masked[-1].device)
         else:
             masked_lm_loss = F.cross_entropy(mlm_logits.view(-1, self.vocab_size), labels.view(-1), ignore_index=-100)
 
