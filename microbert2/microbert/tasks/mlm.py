@@ -39,7 +39,8 @@ class TiedRobertaLMHead(nn.Module):
         x = _tied_generator_forward(x, self.embedding_weights)
 
         if not (labels != -100).any():
-            return {"mlm": torch.tensor(0.0, device=hidden_masked[-1].device)}
+            device = hidden_masked[-1].device
+            return {"mlm": torch.tensor(0.0, device=device), "loss": torch.tensor(0., device=device)}
 
         masked_lm_loss = F.cross_entropy(x.view(-1, self.config.vocab_size), labels.view(-1), ignore_index=-100)
         perplexity = torch.exp(masked_lm_loss)
