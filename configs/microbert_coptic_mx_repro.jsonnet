@@ -51,7 +51,7 @@ local bert_config = {
 };
 
 // Training and Optimization ------------------------------------------------------
-local batch_size = 256;
+local batch_size = 32;
 local grad_accum = 1;
 local effective_batch_size = grad_accum * batch_size;
 // local num_steps = 1e5;
@@ -63,6 +63,12 @@ local optimizer = {
     betas: [0.9, 0.999],
     eps: 1e-6,
     weight_decay: 0.05
+};
+
+local lr_scheduler = {
+    type: "transformers::cosine",
+    num_warmup_steps: 1152 * 5,
+    num_training_steps: 1152 * 200,
 };
 
 // Some set up, don't modify ------------------------------------------------------
@@ -123,6 +129,7 @@ local model = {
 local training_engine = {
     type: "torch",
     optimizer: optimizer,
+    lr_scheduler: lr_scheduler,
     amp: false,
     max_grad_norm: 1.0,
 };
@@ -197,7 +204,7 @@ local val_dataloader = {
             checkpoint_every: 100,
             validation_split: "dev",
             validation_dataloader: val_dataloader,
-            val_metric_name: "perplexity",
+            val_metric_name: "mlm_perplexity",
             // minimize_val_metric: true,
             callbacks: [
                 {
