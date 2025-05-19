@@ -21,7 +21,10 @@ If you'd like to cite our work, please use the following citation:
 }
 ```
 
-# Quick Start
+
+# Use
+
+## Quick Start
 
 1. Install requirements:
 
@@ -40,5 +43,7 @@ tango run configs/microbert_coptic.jsonnet
 4. The finished `transformers.AutoModel`- and `transformers.AutoTokenizer`-compatible models will be saved to `workspace/models`.
 Be warned: multiple runs of the same configuration will result in the original model being overwritten, so be sure to e.g. change the value of `name` inside the configuration between runs.
 
-# Guide
-TODO
+## Application to Other Datasets
+
+Use `configs/microbert_coptic.jsonnet` as a starting point, being sure to change key hyperparameters, tasks, and dataset paths as appropriate.
+If you have questions or problems, please feel free to open an issue.
