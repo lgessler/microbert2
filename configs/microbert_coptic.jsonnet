@@ -147,18 +147,12 @@ local train_dataloader = {
     batch_size: batch_size,
     collate_fn: collate_fn,
     pin_memory: true,
-    num_workers: 2,
-    prefetch_factor: 4,
-    persistent_workers: true,
 };
 local val_dataloader = {
     shuffle: false,
     batch_size: batch_size,
     collate_fn: collate_fn,
     pin_memory: true,
-    num_workers: 2,
-    prefetch_factor: 4,
-    persistent_workers: true,
 };
 
 {
