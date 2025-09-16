@@ -85,6 +85,9 @@ local tokenizer = { pretrained_model_name_or_path: model_path };
 // We provide an explicit abstraction for tasks which allows you to program them
 // in a modular way. Each task needs a dataset, a head, and some other information.
 // See microbert2/microbert/tasks/task.py.
+local mt_task = {
+    type: "microbert2.microbert.tasks.ud_mt.
+};
 local mlm_task = {
     type: "microbert2.microbert.tasks.mlm.MLMTask",
     dataset: { type: "ref", ref: "raw_text_data" },
