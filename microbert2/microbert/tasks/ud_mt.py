@@ -109,7 +109,7 @@ class MTTask(MicroBERTTask, CustomDetHash):
         self._tgt_lang_code = tgt_lang_code
 
         # MBART 
-        self._tok = AutoTokenizer.from_pretrained(mbart_tokenizer_name)
+        self._tok = AutoTokenizer.from_pretrained(mbart_tokenizer_name,use_fast=False)
         self._tok.src_lang = tgt_lang_code  
         self._tok.tgt_lang = tgt_lang_code
         self._pad = self._tok.pad_token_id
