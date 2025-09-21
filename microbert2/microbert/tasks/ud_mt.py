@@ -162,4 +162,7 @@ class MTTask(MicroBERTTask, CustomDetHash):
     @property
     def progress_items(self):
         return ["perplexity"]
+    @property
+    def data_keys(self):
+        return ["tgt_input_ids", "tgt_attention_mask"]
 
