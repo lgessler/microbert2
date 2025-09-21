@@ -91,7 +91,8 @@ local mt_task = {
     type: "microbert2.microbert.tasks.ud_pos.UDMTTask",
     head: {
         num_layers: num_layers,
-        embedding_dim: hidden_size
+        embedding_dim: hidden_size,
+        use_layer_mix: false,
     },
     train_mt_path : train_mt_path,
     test_mt_path : test_mt_path,
