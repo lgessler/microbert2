@@ -78,7 +78,11 @@ def read_parallel_tsv(path: str, src_col: str = "th", tgt_col: str = "en", delim
             src = row[src_col].strip()
             tgt = row[tgt_col].strip()
             if src and tgt:
-                rows.append({"tokens": src.split(), "tgt_text": tgt})
+                rows.append({
+                    "tokens": src.split(),
+                     "tgt_input_ids": tgt,
+                    "tgt_attention_mask": tgt,
+                })
     return rows
 
 @MicroBERTTask.register("microbert2.microbert.tasks.ud_pos.UDMTTask")
