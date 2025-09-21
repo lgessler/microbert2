@@ -27,7 +27,9 @@ local whitespace_tokenized_text_path_dev = "data/cop/dev.txt";
 local train_conllu_path = "data/cop/cop_scriptorium-ud-train.conllu";
 local dev_conllu_path = "data/cop/cop_scriptorium-ud-dev.conllu";
 local test_conllu_path = "data/cop/cop_scriptorium-ud-test.conllu";
-
+local train_mt_path = "data/scb_train.tsv"
+local test_mt_path = "data/scb_test.tsv"
+local dev_mt_path = "data/scb_dev.tsv"
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
 local hidden_size = 128;
@@ -86,7 +88,14 @@ local tokenizer = { pretrained_model_name_or_path: model_path };
 // in a modular way. Each task needs a dataset, a head, and some other information.
 // See microbert2/microbert/tasks/task.py.
 local mt_task = {
-    type: "microbert2.microbert.tasks.ud_mt.
+    type: "microbert2.microbert.tasks.ud_pos.UDMTTask",
+    head: {
+        num_layers: num_layers,
+        embedding_dim: hidden_size
+    }
+    train_mt_path : train_mt_path
+    test_mt_path : test_mt_path
+    dev_mt_path : dev_mt_path
 };
 local mlm_task = {
     type: "microbert2.microbert.tasks.mlm.MLMTask",
@@ -114,7 +123,7 @@ local parse_task = {
     dev_conllu_path: dev_conllu_path,
     test_conllu_path: test_conllu_path,
 };
-local tasks = [mlm_task, pos_task];
+local tasks = [mlm_task, mt_task];
 
 
 // --------------------------------------------------------------------------------

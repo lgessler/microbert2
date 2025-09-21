@@ -69,21 +69,40 @@ class MTHead(torch.nn.Module, FromParams):
 
         return {"loss": loss, "perplexity": ppl}
     
+
+def read_parallel_tsv(path: str, src_col: str = "src", tgt_col: str = "tgt", delimiter: str = "\t"):
+    rows = []
+    with open(path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter=delimiter)
+        for row in reader:
+            src = row[src_col].strip()
+            tgt = row[tgt_col].strip()
+            if src and tgt:
+                rows.append({"tokens": src.split(), "tgt_text": tgt})
+    return rows
+
 @MicroBERTTask.register("microbert2.microbert.tasks.ud_pos.UDMTTask")
 class MTTask(MicroBERTTask, CustomDetHash):
 
     def __init__(
             self,
             head: Lazy[MTHead],
-            train_conllu_path: str,
-            dev_conllu_path: str,
-            test_conllu_path: Optional[str] = None,
+            train_mt_path: str,
+            dev_mt_path: str,
+            test_mt_path: Optional[str] = None,
+            src_col: str = "src",
+            tgt_col: str = "tgt",
+            delimiter: str = "\t",
             proportion: float = 0.1,
             mbart_tokenizer_name: str = "facebook/mbart-large-50-many-to-one-mmt",
             tgt_lang_code: str = "en_XX"
     ):
         self._head = head
-        self._dataset = {} # to be implemented
+        self._dataset = {
+            "train": read_parallel_tsv(train_mt_path, src_col, tgt_col, delimiter),
+            "dev":   read_parallel_tsv(dev_mt_path,   src_col, tgt_col, delimiter),
+            "test":  read_parallel_tsv(test_mt_path,  src_col, tgt_col, delimiter) if test_mt_path else [],
+        }
         self._proportion = proportion
         self._mbart_tokenizer_name = mbart_tokenizer_name
         self._tgt_lang_code = tgt_lang_code
@@ -98,7 +117,45 @@ class MTTask(MicroBERTTask, CustomDetHash):
     @property
     def dataset(self):
         return self._dataset
-    
+
+    def _encode_tgt(self, text: str):
+        enc = self._tok(
+            text,
+            max_length=self._max_tgt_len,
+            truncation=True,
+            add_special_tokens=True,
+        )
+        return (
+            torch.tensor(enc["input_ids"], dtype=torch.long),
+            torch.tensor(enc["attention_mask"], dtype=torch.long),
+        )
+
+    def tensorify_data(self, key, value):
+        if key == "tgt_input_ids":
+            ids, _ = self._encode_tgt(value)  
+            return ids
+        elif key == "tgt_attention_mask":
+            _, mask = self._encode_tgt(value)
+            return mask
+        else:
+            raise ValueError(key)
+
+    def null_tensor(self, key):
+        if key == "tgt_input_ids":
+            return torch.tensor([self._pad], dtype=torch.long)
+        elif key == "tgt_attention_mask":
+            return torch.tensor([0], dtype=torch.long)
+        else:
+            raise ValueError(key)
+
+    def collate_data(self, key: str, values: List[torch.Tensor]):
+        if key == "tgt_input_ids":
+            return pad_sequence(values, batch_first=True, padding_value=self._pad)
+        elif key == "tgt_attention_mask":
+            return pad_sequence(values, batch_first=True, padding_value=0)
+        else:
+            raise ValueError(key)
+
     @property
     def inst_proportion(self) -> float:
         return self._proportion
