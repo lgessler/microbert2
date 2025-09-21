@@ -27,9 +27,9 @@ local whitespace_tokenized_text_path_dev = "data/cop/dev.txt";
 local train_conllu_path = "data/cop/cop_scriptorium-ud-train.conllu";
 local dev_conllu_path = "data/cop/cop_scriptorium-ud-dev.conllu";
 local test_conllu_path = "data/cop/cop_scriptorium-ud-test.conllu";
-local train_mt_path = "data/scb_train.tsv"
-local test_mt_path = "data/scb_test.tsv"
-local dev_mt_path = "data/scb_dev.tsv"
+local train_mt_path = "../scb_mt_enth_2020_tsv/train.tsv";
+local test_mt_path = "../scb_mt_enth_2020_tsv/test.tsv";
+local dev_mt_path = "../scb_mt_enth_2020_tsv/dev.tsv";
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
 local hidden_size = 128;
@@ -92,10 +92,10 @@ local mt_task = {
     head: {
         num_layers: num_layers,
         embedding_dim: hidden_size
-    }
-    train_mt_path : train_mt_path
-    test_mt_path : test_mt_path
-    dev_mt_path : dev_mt_path
+    },
+    train_mt_path : train_mt_path,
+    test_mt_path : test_mt_path,
+    dev_mt_path : dev_mt_path,
 };
 local mlm_task = {
     type: "microbert2.microbert.tasks.mlm.MLMTask",

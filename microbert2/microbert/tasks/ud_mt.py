@@ -70,7 +70,7 @@ class MTHead(torch.nn.Module, FromParams):
         return {"loss": loss, "perplexity": ppl}
     
 
-def read_parallel_tsv(path: str, src_col: str = "src", tgt_col: str = "tgt", delimiter: str = "\t"):
+def read_parallel_tsv(path: str, src_col: str = "th", tgt_col: str = "en", delimiter: str = "\t"):
     rows = []
     with open(path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f, delimiter=delimiter)
@@ -90,8 +90,8 @@ class MTTask(MicroBERTTask, CustomDetHash):
             train_mt_path: str,
             dev_mt_path: str,
             test_mt_path: Optional[str] = None,
-            src_col: str = "src",
-            tgt_col: str = "tgt",
+            src_col: str = "th",
+            tgt_col: str = "en",
             delimiter: str = "\t",
             proportion: float = 0.1,
             mbart_tokenizer_name: str = "facebook/mbart-large-50-many-to-one-mmt",
