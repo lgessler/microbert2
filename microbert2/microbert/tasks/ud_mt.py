@@ -60,6 +60,9 @@ class MTHead(torch.nn.Module, FromParams):
 
         enc = self._mix_layers(hidden_masked) 
 
+        if self.proj is not None:
+            enc = self.proj(enc)
+        
         enc_out = BaseModelOutput(last_hidden_state=enc)
 
         out = self.mbart(
