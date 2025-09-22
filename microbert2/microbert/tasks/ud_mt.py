@@ -38,6 +38,7 @@ class MTHead(torch.nn.Module, FromParams):
         d_model = self.mbart.config.d_model  
         if embedding_dim != d_model:
             self.proj = torch.nn.Linear(embedding_dim, d_model)
+            logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
 
         if  freeze_decoder:
             for param in self.mbart.model.decoder.parameters():
