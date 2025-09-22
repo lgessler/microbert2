@@ -27,7 +27,6 @@ class MTHead(torch.nn.Module, FromParams):
             mbert_model_name: str = "facebook/mbart-large-50-many-to-many-mmt",
             use_layer_mix: bool = True,
             freeze_decoder: bool = True,
-            project_to_decoder_dim: bool = True,
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
@@ -37,7 +36,7 @@ class MTHead(torch.nn.Module, FromParams):
 
         self.mbart = AutoModelForSeq2SeqLM.from_pretrained(mbert_model_name)
         d_model = self.mbart.config.d_model  
-        if project_to_decoder_dim and embedding_dim != d_model:
+        if embedding_dim != d_model:
             self.proj = torch.nn.Linear(embedding_dim, d_model)
 
         if  freeze_decoder:
