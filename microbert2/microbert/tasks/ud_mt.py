@@ -24,7 +24,7 @@ class MTHead(torch.nn.Module, FromParams):
             self,
             num_layers: int,
             embedding_dim: int,
-            mbert_model_name: str = "facebook/mbart-large-50",
+            mbert_model_name: str = "facebook/mbart-large-50-many-to-many-mmt",
             use_layer_mix: bool = True,
             freeze_decoder: bool = True,
     ):
@@ -107,7 +107,7 @@ class MTTask(MicroBERTTask, CustomDetHash):
             proportion: float = 0.1,
             mbart_tokenizer_name: str = "facebook/mbart-large-50-many-to-one-mmt",
             tgt_lang_code: str = "en_XX",
-            max_tgt_len: int = 128,
+            max_tgt_len: int = 48,
     ):
         self._head = head
         self._dataset = {
