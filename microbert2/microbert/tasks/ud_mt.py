@@ -24,7 +24,7 @@ class MTHead(torch.nn.Module, FromParams):
             self,
             num_layers: int,
             embedding_dim: int,
-            mbert_model_name: str = "facebook/mbart-large-50-many-to-many-mmt",
+            mbert_model_name: str = "facebook/mbart-large-50",
             use_layer_mix: bool = True,
             freeze_decoder: bool = True,
     ):
