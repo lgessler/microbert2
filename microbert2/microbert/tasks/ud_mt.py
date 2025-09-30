@@ -77,17 +77,19 @@ class MTHead(torch.nn.Module, FromParams):
         return {"loss": loss, "perplexity": ppl}
     
 
-def read_parallel_tsv(path: str, src_col: str = "th", tgt_col: str = "en", delimiter: str = "\t"):
+def read_parallel_tsv(path: str, delimiter: str = "\t"):
     rows = []
     with open(path, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter=delimiter)
+        reader = csv.reader(f, delimiter=delimiter)
         for row in reader:
-            src = row[src_col].strip()
-            tgt = row[tgt_col].strip()
+            if len(row) < 2: 
+                continue
+            src = row[0].strip()   # first column = source
+            tgt = row[1].strip()   # second column = target
             if src and tgt:
                 rows.append({
                     "tokens": src.split(),
-                     "tgt_input_ids": tgt,
+                    "tgt_input_ids": tgt,
                     "tgt_attention_mask": tgt,
                 })
     return rows
@@ -101,8 +103,6 @@ class MTTask(MicroBERTTask, CustomDetHash):
             train_mt_path: str,
             dev_mt_path: str,
             test_mt_path: Optional[str] = None,
-            src_col: str = "th",
-            tgt_col: str = "en",
             delimiter: str = "\t",
             proportion: float = 0.1,
             mbart_tokenizer_name: str = "facebook/mbart-large-50-many-to-one-mmt",
@@ -111,9 +111,9 @@ class MTTask(MicroBERTTask, CustomDetHash):
     ):
         self._head = head
         self._dataset = {
-            "train": read_parallel_tsv(train_mt_path, src_col, tgt_col, delimiter),
-            "dev":   read_parallel_tsv(dev_mt_path,   src_col, tgt_col, delimiter),
-            "test":  read_parallel_tsv(test_mt_path,  src_col, tgt_col, delimiter) if test_mt_path else [],
+            "train": read_parallel_tsv(train_mt_path, delimiter),
+            "dev":   read_parallel_tsv(dev_mt_path, delimiter),
+            "test":  read_parallel_tsv(test_mt_path, delimiter) if test_mt_path else [],
         }
         self._proportion = proportion
         self._mbart_tokenizer_name = mbart_tokenizer_name
@@ -121,7 +121,7 @@ class MTTask(MicroBERTTask, CustomDetHash):
 
         # MBART 
         self._tok = AutoTokenizer.from_pretrained(mbart_tokenizer_name,use_fast=False)
-        self._tok.src_lang = "th_TH"  
+        self._tok.src_lang = ""  
         self._tok.tgt_lang = tgt_lang_code
         self._pad = self._tok.pad_token_id
         self._max_tgt_len = max_tgt_len
