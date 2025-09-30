@@ -1,332 +1,0 @@
-conda version 25.3.0 python 3.12.7 unloaded.
-conda version 25.3.0 python 3.12.7 loaded.
-[09/11/25 13:48:42] WARNING  /N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/tango/step_info.py:30: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
-  import pkg_resources
-                                                                               warnings.py:109
-[09/11/25 13:48:42] INFO     Starting new run wired-impala                                                                        site-packages/tango/cli.py:203
-[09/11/25 13:48:42] INFO     ● Starting step "raw_text_data"...                                                                  site-packages/tango/step.py:761
-[09/11/25 13:48:42] INFO     Read 33327 train_sentences (983264 tokens) from data/cop/train.txt                                       microbert2/data/text.py:81
-[09/11/25 13:48:42] INFO     Read 1284 dev_sentences (21389 tokens) from data/cop/dev.txt                                             microbert2/data/text.py:85
-[09/11/25 13:48:42] INFO     Read 1284 test_sentences (21389 tokens) from data/cop/dev.txt                                            microbert2/data/text.py:88
-[09/11/25 13:48:42] INFO     First train sentence: {'tokens': ['ⲥⲟⲛ', 'ⲥⲛⲁⲩ', 'ⲕⲁⲧⲁ', 'ⲥⲁⲣⲝ', 'ⲁ', 'ⲩ', 'ⲃⲱⲕ', 'ⲉ', 'ⲩ', 'ϩⲉⲛⲉⲉⲧⲉ', '.']} microbert2/data/text.py:95
-[09/11/25 13:48:42] INFO     First dev sentence: {'tokens': ['ⲕⲟⲥⲙⲟⲥ', 'ⲉ', 'ⲛ', 'ⲙⲟⲟϣⲉ', 'ϩⲛ', 'ⲛ', 'ϫⲱϩⲙ', 'ⲙⲛ', 'ⲛ', 'ϯϩⲉ', '·', 'ⲙⲛ', 'ⲛ', 'ϫⲏⲣ', '·', 'ⲙⲛ', 'ⲛ', 'ⲥⲱ', '·', 'ⲙⲛ', 'ⲙ', 'ⲙⲛⲧⲣⲉϥϣⲙϣⲉⲉⲓⲇⲱⲗⲟⲛ', 'ⲉⲧ', 'ϫⲁϩⲙ', '·']}                                                                  microbert2/data/text.py:96
-[09/11/25 13:48:42] INFO     First test sentence: {'tokens': ['ⲕⲟⲥⲙⲟⲥ', 'ⲉ', 'ⲛ', 'ⲙⲟⲟϣⲉ', 'ϩⲛ', 'ⲛ', 'ϫⲱϩⲙ', 'ⲙⲛ', 'ⲛ', 'ϯϩⲉ', '·', 'ⲙⲛ', 'ⲛ', 'ϫⲏⲣ', '·', 'ⲙⲛ', 'ⲛ', 'ⲥⲱ', '·', 'ⲙⲛ', 'ⲙ', 'ⲙⲛⲧⲣⲉϥϣⲙϣⲉⲉⲓⲇⲱⲗⲟⲛ', 'ⲉⲧ', 'ϫⲁϩⲙ', '·']}                                                                 microbert2/data/text.py:97
-[09/11/25 13:48:45] INFO     ✓ Finished step "raw_text_data"                                                                     site-packages/tango/step.py:774
-[09/11/25 13:48:45] INFO     ✓ Found output for step "raw_text_data" in cache...                                                 site-packages/tango/step.py:748
-[09/11/25 13:48:51] INFO     ✓ Found output for step "raw_text_data" in cache (needed by "tokenizer")...                         site-packages/tango/step.py:741
-[09/11/25 13:48:51] INFO     ● Starting step "tokenizer"...                                                                      site-packages/tango/step.py:761
-
-
-
-[09/11/25 13:48:52] INFO     Wrote vocab to./workspace/models/coptic_mx_modern_attention_dropout-0.1_embedding_dropout-0.1_global_attn_every_n_layers-2_hidden_size-128_intermediate_size-192_max_position_embeddings-512_mlp_dropout-0.1_num_attention_heads-4_num_hidden_layers-4                  microbert2/tokenizers.py:29
-[09/11/25 13:48:52] INFO     Wrote tokenizer to ./workspace/models/coptic_mx_modern_attention_dropout-0.1_embedding_dropout-0.1_global_attn_every_n_layers-2_hidden_size-128_intermediate_size-192_max_position_embeddings-512_mlp_dropout-0.1_num_attention_heads-4_num_hidden_layers-4         microbert2/data/tokenize.py:187
-[09/11/25 13:48:52] INFO     ✓ Finished step "tokenizer"                                                                         site-packages/tango/step.py:774
-[09/11/25 13:48:52] INFO     ✓ Found output for step "raw_text_data" in cache...                                                 site-packages/tango/step.py:748
-[09/11/25 13:48:59] INFO     ✓ Found output for step "raw_text_data" in cache (needed by "tokenized_text_data")...               site-packages/tango/step.py:741
-[09/11/25 13:48:59] INFO     ✓ Found output for step "tokenizer" in cache (needed by "tokenized_text_data")...                   site-packages/tango/step.py:741
-[09/11/25 13:48:59] INFO     ● Starting step "tokenized_text_data"...                                                            site-packages/tango/step.py:761
-[09/11/25 13:48:59] INFO     Sample inst from mlm_train:
-
-        {'tokens': ['ⲱ', 'ⲡ', 'ⲛⲁⲏⲧ', 'ⲙⲁⲩⲁⲁ', 'ϥ', '·', 'ⲁⲩⲱ', 'ⲡ', 'ⲙⲁⲓ', 'ⲣⲱⲙⲉ', 'ⲛⲓⲙ', '·']}
- microbert2/data/tokenize.py:100
-Tokenizing mlm (train):   0%|          | 0/33327 [00:00<?, ?it/s]Tokenizing mlm (train):   1%|1         | 338/33327 [00:00<00:09, 3372.86it/s]Tokenizing mlm (train):   2%|2         | 676/33327 [00:00<00:11, 2759.26it/s]Tokenizing mlm (train):   3%|2         | 959/33327 [00:00<00:13, 2448.05it/s]Tokenizing mlm (train):   4%|3         | 1210/33327 [00:00<00:15, 2054.43it/s]Tokenizing mlm (train):   4%|4         | 1424/33327 [00:00<00:17, 1829.17it/s]Tokenizing mlm (train):   5%|4         | 1613/33327 [00:00<00:19, 1638.42it/s]Tokenizing mlm (train):   5%|5         | 1822/33327 [00:00<00:17, 1751.43it/s]Tokenizing mlm (train):   6%|6         | 2005/33327 [00:01<00:17, 1771.76it/s]Tokenizing mlm (train):   7%|6         | 2187/33327 [00:01<00:17, 1741.26it/s]Tokenizing mlm (train):   7%|7         | 2365/33327 [00:01<00:18, 1698.59it/s]Tokenizing mlm (train):   8%|7         | 2537/33327 [00:01<00:19, 1604.99it/s]Tokenizing mlm (train):   8%|8         | 2700/33327 [00:01<00:19, 1571.53it/s]Tokenizing mlm (train):   9%|8         | 2883/33327 [00:01<00:18, 1639.51it/s]Tokenizing mlm (train):   9%|9         | 3049/33327 [00:01<00:19, 1550.49it/s]Tokenizing mlm (train):  10%|9         | 3206/33327 [00:01<00:21, 1388.07it/s]Tokenizing mlm (train):  10%|#         | 3349/33327 [00:01<00:22, 1348.67it/s]Tokenizing mlm (train):  11%|#         | 3521/33327 [00:02<00:20, 1445.60it/s]Tokenizing mlm (train):  11%|#1        | 3696/33327 [00:02<00:19, 1528.35it/s]Tokenizing mlm (train):  12%|#1        | 3852/33327 [00:02<00:19, 1536.70it/s]Tokenizing mlm (train):  12%|#2        | 4008/33327 [00:02<00:20, 1445.76it/s]Tokenizing mlm (train):  13%|#2        | 4169/33327 [00:02<00:19, 1491.08it/s]Tokenizing mlm (train):  13%|#2        | 4321/33327 [00:02<00:20, 1417.65it/s]Tokenizing mlm (train):  13%|#3        | 4487/33327 [00:02<00:19, 1483.70it/s]Tokenizing mlm (train):  14%|#3        | 4661/33327 [00:02<00:18, 1552.14it/s]Tokenizing mlm (train):  15%|#4        | 4876/33327 [00:02<00:16, 1722.80it/s]Tokenizing mlm (train):  15%|#5        | 5090/33327 [00:03<00:15, 1839.37it/s]Tokenizing mlm (train):  16%|#5        | 5277/33327 [00:03<00:15, 1842.75it/s]Tokenizing mlm (train):  16%|#6        | 5469/33327 [00:03<00:15, 1855.95it/s]Tokenizing mlm (train):  17%|#6        | 5656/33327 [00:03<00:14, 1848.88it/s]Tokenizing mlm (train):  18%|#7        | 5844/33327 [00:03<00:14, 1857.13it/s]Tokenizing mlm (train):  18%|#8        | 6031/33327 [00:03<00:15, 1707.02it/s]Tokenizing mlm (train):  19%|#8        | 6205/33327 [00:03<00:16, 1602.65it/s]Tokenizing mlm (train):  19%|#9        | 6368/33327 [00:03<00:17, 1520.60it/s]Tokenizing mlm (train):  20%|#9        | 6523/33327 [00:03<00:17, 1496.76it/s]Tokenizing mlm (train):  20%|##        | 6675/33327 [00:04<00:19, 1397.08it/s]Tokenizing mlm (train):  20%|##        | 6817/33327 [00:04<00:19, 1345.66it/s]Tokenizing mlm (train):  21%|##        | 6953/33327 [00:04<00:19, 1332.26it/s]Tokenizing mlm (train):  21%|##1       | 7087/33327 [00:04<00:19, 1329.09it/s]Tokenizing mlm (train):  22%|##1       | 7221/33327 [00:04<00:20, 1271.26it/s]Tokenizing mlm (train):  22%|##2       | 7349/33327 [00:04<00:20, 1241.70it/s]Tokenizing mlm (train):  22%|##2       | 7479/33327 [00:04<00:20, 1257.76it/s]Tokenizing mlm (train):  23%|##2       | 7606/33327 [00:04<00:20, 1251.01it/s]Tokenizing mlm (train):  23%|##3       | 7732/33327 [00:04<00:20, 1252.17it/s]Tokenizing mlm (train):  24%|##3       | 7858/33327 [00:04<00:20, 1249.53it/s]Tokenizing mlm (train):  24%|##3       | 7984/33327 [00:05<00:20, 1251.11it/s]Tokenizing mlm (train):  24%|##4       | 8110/33327 [00:05<00:20, 1206.93it/s]Tokenizing mlm (train):  25%|##4       | 8232/33327 [00:05<00:20, 1204.05it/s]Tokenizing mlm (train):  25%|##5       | 8353/33327 [00:05<00:21, 1169.93it/s]Tokenizing mlm (train):  25%|##5       | 8475/33327 [00:05<00:21, 1182.33it/s]Tokenizing mlm (train):  26%|##5       | 8603/33327 [00:05<00:20, 1208.65it/s]Tokenizing mlm (train):  26%|##6       | 8745/33327 [00:05<00:19, 1269.82it/s]Tokenizing mlm (train):  27%|##6       | 8885/33327 [00:05<00:18, 1307.06it/s]Tokenizing mlm (train):  27%|##7       | 9016/33327 [00:05<00:19, 1277.80it/s]Tokenizing mlm (train):  27%|##7       | 9145/33327 [00:06<00:18, 1276.64it/s]Tokenizing mlm (train):  28%|##7       | 9273/33327 [00:06<00:33, 714.12it/s] Tokenizing mlm (train):  28%|##8       | 9428/33327 [00:06<00:27, 872.90it/s]Tokenizing mlm (train):  29%|##8       | 9547/33327 [00:06<00:25, 939.15it/s]Tokenizing mlm (train):  29%|##8       | 9664/33327 [00:06<00:23, 991.93it/s]Tokenizing mlm (train):  29%|##9       | 9783/33327 [00:06<00:22, 1041.07it/s]Tokenizing mlm (train):  30%|##9       | 9909/33327 [00:06<00:21, 1097.91it/s]Tokenizing mlm (train):  30%|###       | 10041/33327 [00:06<00:20, 1156.46it/s]Tokenizing mlm (train):  31%|###       | 10165/33327 [00:07<00:20, 1141.01it/s]Tokenizing mlm (train):  31%|###       | 10294/33327 [00:07<00:19, 1181.36it/s]Tokenizing mlm (train):  31%|###1      | 10417/33327 [00:07<00:19, 1170.02it/s]Tokenizing mlm (train):  32%|###1      | 10555/33327 [00:07<00:18, 1229.62it/s]Tokenizing mlm (train):  32%|###2      | 10691/33327 [00:07<00:17, 1266.84it/s]Tokenizing mlm (train):  33%|###2      | 10843/33327 [00:07<00:16, 1336.79it/s]Tokenizing mlm (train):  33%|###2      | 10994/33327 [00:07<00:16, 1385.91it/s]Tokenizing mlm (train):  33%|###3      | 11134/33327 [00:07<00:16, 1348.26it/s]Tokenizing mlm (train):  34%|###3      | 11270/33327 [00:07<00:17, 1293.14it/s]Tokenizing mlm (train):  34%|###4      | 11401/33327 [00:08<00:17, 1256.81it/s]Tokenizing mlm (train):  35%|###4      | 11528/33327 [00:08<00:17, 1254.96it/s]Tokenizing mlm (train):  35%|###4      | 11657/33327 [00:08<00:17, 1263.75it/s]Tokenizing mlm (train):  35%|###5      | 11810/33327 [00:08<00:16, 1338.54it/s]Tokenizing mlm (train):  36%|###5      | 11945/33327 [00:08<00:16, 1301.19it/s]Tokenizing mlm (train):  36%|###6      | 12076/33327 [00:08<00:16, 1300.61it/s]Tokenizing mlm (train):  37%|###6      | 12207/33327 [00:08<00:16, 1272.23it/s]Tokenizing mlm (train):  37%|###7      | 12344/33327 [00:08<00:16, 1297.07it/s]Tokenizing mlm (train):  37%|###7      | 12482/33327 [00:08<00:15, 1319.04it/s]Tokenizing mlm (train):  38%|###7      | 12616/33327 [00:08<00:15, 1323.98it/s]Tokenizing mlm (train):  38%|###8      | 12754/33327 [00:09<00:15, 1338.33it/s]Tokenizing mlm (train):  39%|###8      | 12888/33327 [00:09<00:16, 1269.66it/s]Tokenizing mlm (train):  39%|###9      | 13019/33327 [00:09<00:15, 1280.61it/s]Tokenizing mlm (train):  39%|###9      | 13148/33327 [00:09<00:16, 1222.85it/s]Tokenizing mlm (train):  40%|###9      | 13296/33327 [00:09<00:15, 1294.52it/s]Tokenizing mlm (train):  40%|####      | 13427/33327 [00:09<00:15, 1258.88it/s]Tokenizing mlm (train):  41%|####      | 13556/33327 [00:09<00:15, 1266.85it/s]Tokenizing mlm (train):  41%|####1     | 13684/33327 [00:09<00:15, 1250.92it/s]Tokenizing mlm (train):  41%|####1     | 13819/33327 [00:09<00:15, 1279.38it/s]Tokenizing mlm (train):  42%|####1     | 13948/33327 [00:10<00:15, 1238.29it/s]Tokenizing mlm (train):  42%|####2     | 14073/33327 [00:10<00:16, 1193.73it/s]Tokenizing mlm (train):  43%|####2     | 14193/33327 [00:10<00:16, 1186.53it/s]Tokenizing mlm (train):  43%|####2     | 14313/33327 [00:10<00:16, 1126.86it/s]Tokenizing mlm (train):  43%|####3     | 14447/33327 [00:10<00:15, 1185.49it/s]Tokenizing mlm (train):  44%|####3     | 14579/33327 [00:10<00:15, 1223.30it/s]Tokenizing mlm (train):  44%|####4     | 14716/33327 [00:10<00:14, 1263.82it/s]Tokenizing mlm (train):  45%|####4     | 14844/33327 [00:10<00:16, 1144.54it/s]Tokenizing mlm (train):  45%|####4     | 14961/33327 [00:10<00:17, 1059.38it/s]Tokenizing mlm (train):  45%|####5     | 15070/33327 [00:11<00:18, 973.46it/s] Tokenizing mlm (train):  46%|####5     | 15178/33327 [00:11<00:18, 1000.09it/s]Tokenizing mlm (train):  46%|####5     | 15281/33327 [00:11<00:18, 1001.09it/s]Tokenizing mlm (train):  46%|####6     | 15383/33327 [00:11<00:18, 983.50it/s] Tokenizing mlm (train):  46%|####6     | 15483/33327 [00:11<00:18, 959.44it/s]Tokenizing mlm (train):  47%|####6     | 15582/33327 [00:11<00:18, 966.44it/s]Tokenizing mlm (train):  47%|####7     | 15680/33327 [00:11<00:18, 967.76it/s]Tokenizing mlm (train):  47%|####7     | 15810/33327 [00:11<00:16, 1062.12it/s]Tokenizing mlm (train):  48%|####7     | 15917/33327 [00:11<00:17, 1017.93it/s]Tokenizing mlm (train):  48%|####8     | 16020/33327 [00:12<00:17, 1012.06it/s]Tokenizing mlm (train):  48%|####8     | 16122/33327 [00:12<00:16, 1013.21it/s]Tokenizing mlm (train):  49%|####8     | 16226/33327 [00:12<00:16, 1019.37it/s]Tokenizing mlm (train):  49%|####9     | 16338/33327 [00:12<00:16, 1046.94it/s]Tokenizing mlm (train):  49%|####9     | 16443/33327 [00:12<00:16, 1006.06it/s]Tokenizing mlm (train):  50%|####9     | 16560/33327 [00:12<00:15, 1051.40it/s]Tokenizing mlm (train):  50%|#####     | 16666/33327 [00:12<00:16, 1012.08it/s]Tokenizing mlm (train):  50%|#####     | 16772/33327 [00:12<00:16, 1025.56it/s]Tokenizing mlm (train):  51%|#####     | 16881/33327 [00:12<00:15, 1042.74it/s]Tokenizing mlm (train):  51%|#####     | 16988/33327 [00:12<00:15, 1049.44it/s]Tokenizing mlm (train):  51%|#####1    | 17097/33327 [00:13<00:15, 1059.78it/s]Tokenizing mlm (train):  52%|#####1    | 17204/33327 [00:13<00:15, 1057.41it/s]Tokenizing mlm (train):  52%|#####2    | 17351/33327 [00:13<00:13, 1178.55it/s]Tokenizing mlm (train):  52%|#####2    | 17470/33327 [00:13<00:13, 1165.67it/s]Tokenizing mlm (train):  53%|#####2    | 17587/33327 [00:13<00:13, 1144.97it/s]Tokenizing mlm (train):  53%|#####3    | 17702/33327 [00:13<00:14, 1101.96it/s]Tokenizing mlm (train):  53%|#####3    | 17816/33327 [00:13<00:13, 1110.70it/s]Tokenizing mlm (train):  54%|#####3    | 17948/33327 [00:13<00:13, 1169.55it/s]Tokenizing mlm (train):  54%|#####4    | 18079/33327 [00:13<00:12, 1208.13it/s]Tokenizing mlm (train):  55%|#####4    | 18217/33327 [00:13<00:12, 1258.70it/s]Tokenizing mlm (train):  55%|#####5    | 18344/33327 [00:14<00:12, 1217.74it/s]Tokenizing mlm (train):  55%|#####5    | 18472/33327 [00:14<00:12, 1234.15it/s]Tokenizing mlm (train):  56%|#####5    | 18596/33327 [00:14<00:12, 1165.82it/s]Tokenizing mlm (train):  56%|#####6    | 18724/33327 [00:14<00:12, 1196.38it/s]Tokenizing mlm (train):  57%|#####6    | 18845/33327 [00:14<00:12, 1139.97it/s]Tokenizing mlm (train):  57%|#####6    | 18963/33327 [00:14<00:12, 1151.17it/s]Tokenizing mlm (train):  57%|#####7    | 19081/33327 [00:14<00:12, 1159.40it/s]Tokenizing mlm (train):  58%|#####7    | 19198/33327 [00:14<00:12, 1138.87it/s]Tokenizing mlm (train):  58%|#####7    | 19313/33327 [00:14<00:12, 1100.25it/s]Tokenizing mlm (train):  58%|#####8    | 19424/33327 [00:15<00:12, 1076.19it/s]Tokenizing mlm (train):  59%|#####8    | 19532/33327 [00:15<00:12, 1073.72it/s]Tokenizing mlm (train):  59%|#####8    | 19640/33327 [00:15<00:13, 1048.53it/s]Tokenizing mlm (train):  59%|#####9    | 19753/33327 [00:15<00:12, 1071.78it/s]Tokenizing mlm (train):  60%|#####9    | 19861/33327 [00:15<00:12, 1055.16it/s]Tokenizing mlm (train):  60%|#####9    | 19986/33327 [00:15<00:12, 1109.89it/s]Tokenizing mlm (train):  60%|######    | 20098/33327 [00:15<00:12, 1040.92it/s]Tokenizing mlm (train):  61%|######    | 20204/33327 [00:15<00:12, 1043.81it/s]Tokenizing mlm (train):  61%|######    | 20310/33327 [00:15<00:12, 1035.65it/s]Tokenizing mlm (train):  61%|######1   | 20415/33327 [00:16<00:12, 1036.23it/s]Tokenizing mlm (train):  62%|######1   | 20629/33327 [00:16<00:09, 1355.60it/s]Tokenizing mlm (train):  62%|######2   | 20799/33327 [00:16<00:08, 1455.44it/s]Tokenizing mlm (train):  63%|######2   | 20982/33327 [00:16<00:07, 1563.74it/s]Tokenizing mlm (train):  64%|######3   | 21171/33327 [00:16<00:07, 1659.80it/s]Tokenizing mlm (train):  64%|######4   | 21341/33327 [00:16<00:07, 1669.35it/s]Tokenizing mlm (train):  65%|######4   | 21509/33327 [00:16<00:08, 1409.90it/s]Tokenizing mlm (train):  65%|######4   | 21658/33327 [00:16<00:08, 1371.54it/s]Tokenizing mlm (train):  65%|######5   | 21801/33327 [00:16<00:09, 1279.72it/s]Tokenizing mlm (train):  66%|######5   | 21934/33327 [00:17<00:09, 1160.75it/s][09/11/25 13:49:16] WARNING  Stopping at token 494 in sentence with 1290 tokens due to wordpiece limit                            microbert2/data/tokenize.py:47
-Tokenizing mlm (train):  66%|######6   | 22055/33327 [00:17<00:10, 1069.31it/s]Tokenizing mlm (train):  67%|######6   | 22166/33327 [00:17<00:10, 1049.20it/s]Tokenizing mlm (train):  67%|######6   | 22274/33327 [00:17<00:10, 1041.31it/s]Tokenizing mlm (train):  67%|######7   | 22380/33327 [00:17<00:10, 1038.28it/s]Tokenizing mlm (train):  67%|######7   | 22485/33327 [00:17<00:10, 1033.36it/s]Tokenizing mlm (train):  68%|######7   | 22615/33327 [00:17<00:09, 1106.14it/s]Tokenizing mlm (train):  68%|######8   | 22745/33327 [00:17<00:09, 1158.67it/s]Tokenizing mlm (train):  69%|######8   | 22862/33327 [00:17<00:09, 1149.51it/s]Tokenizing mlm (train):  69%|######8   | 22989/33327 [00:18<00:08, 1184.18it/s]Tokenizing mlm (train):  69%|######9   | 23109/33327 [00:18<00:08, 1188.69it/s]Tokenizing mlm (train):  70%|######9   | 23240/33327 [00:18<00:08, 1218.46it/s]Tokenizing mlm (train):  70%|#######   | 23392/33327 [00:18<00:07, 1303.10it/s]Tokenizing mlm (train):  71%|#######   | 23559/33327 [00:18<00:06, 1411.01it/s]Tokenizing mlm (train):  71%|#######1  | 23701/33327 [00:18<00:06, 1398.36it/s]Tokenizing mlm (train):  72%|#######1  | 23874/33327 [00:18<00:06, 1494.77it/s]Tokenizing mlm (train):  72%|#######2  | 24037/33327 [00:18<00:06, 1533.17it/s]Tokenizing mlm (train):  73%|#######2  | 24224/33327 [00:18<00:05, 1632.34it/s]Tokenizing mlm (train):  73%|#######3  | 24413/33327 [00:18<00:05, 1706.91it/s]Tokenizing mlm (train):  74%|#######3  | 24613/33327 [00:19<00:04, 1793.61it/s]Tokenizing mlm (train):  75%|#######4  | 24840/33327 [00:19<00:04, 1935.68it/s]Tokenizing mlm (train):  75%|#######5  | 25035/33327 [00:19<00:04, 1935.36it/s]Tokenizing mlm (train):  76%|#######5  | 25237/33327 [00:19<00:04, 1959.70it/s]Tokenizing mlm (train):  76%|#######6  | 25434/33327 [00:19<00:04, 1887.48it/s]Tokenizing mlm (train):  77%|#######6  | 25624/33327 [00:19<00:04, 1877.47it/s]Tokenizing mlm (train):  77%|#######7  | 25813/33327 [00:19<00:04, 1852.06it/s]Tokenizing mlm (train):  78%|#######8  | 26002/33327 [00:19<00:03, 1862.52it/s]Tokenizing mlm (train):  79%|#######8  | 26195/33327 [00:19<00:03, 1879.80it/s]Tokenizing mlm (train):  79%|#######9  | 26384/33327 [00:19<00:03, 1866.55it/s]Tokenizing mlm (train):  80%|#######9  | 26595/33327 [00:20<00:03, 1937.14it/s]Tokenizing mlm (train):  80%|########  | 26789/33327 [00:20<00:03, 1904.92it/s]Tokenizing mlm (train):  81%|########  | 26980/33327 [00:20<00:03, 1730.24it/s]Tokenizing mlm (train):  82%|########1 | 27172/33327 [00:20<00:03, 1780.74it/s]Tokenizing mlm (train):  82%|########2 | 27365/33327 [00:20<00:03, 1820.08it/s][09/11/25 13:49:19] WARNING  Stopping at token 506 in sentence with 1003 tokens due to wordpiece limit                            microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 503 in sentence with 751 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 496 in sentence with 694 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 491 in sentence with 529 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 502 in sentence with 685 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 506 in sentence with 688 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 505 in sentence with 846 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 497 in sentence with 1088 tokens due to wordpiece limit                            microbert2/data/tokenize.py:47
-Tokenizing mlm (train):  83%|########2 | 27550/33327 [00:20<00:04, 1361.51it/s][09/11/25 13:49:19] WARNING  Stopping at token 496 in sentence with 740 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 502 in sentence with 646 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 494 in sentence with 614 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 496 in sentence with 767 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 509 in sentence with 526 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 500 in sentence with 871 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 499 in sentence with 624 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 503 in sentence with 722 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 490 in sentence with 605 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 503 in sentence with 841 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-[09/11/25 13:49:19] WARNING  Stopping at token 502 in sentence with 743 tokens due to wordpiece limit                             microbert2/data/tokenize.py:47
-Tokenizing mlm (train):  83%|########3 | 27705/33327 [00:20<00:04, 1125.15it/s]Tokenizing mlm (train):  84%|########3 | 27852/33327 [00:21<00:04, 1195.95it/s]Tokenizing mlm (train):  84%|########3 | 27988/33327 [00:21<00:04, 1170.42it/s]Tokenizing mlm (train):  84%|########4 | 28161/33327 [00:21<00:03, 1303.29it/s]Tokenizing mlm (train):  85%|########4 | 28315/33327 [00:21<00:03, 1362.48it/s]Tokenizing mlm (train):  85%|########5 | 28489/33327 [00:21<00:03, 1459.10it/s]Tokenizing mlm (train):  86%|########6 | 28697/33327 [00:21<00:02, 1627.71it/s]Tokenizing mlm (train):  87%|########6 | 28877/33327 [00:21<00:02, 1675.73it/s]Tokenizing mlm (train):  87%|########7 | 29050/33327 [00:21<00:02, 1623.24it/s]Tokenizing mlm (train):  88%|########7 | 29216/33327 [00:21<00:02, 1611.10it/s]Tokenizing mlm (train):  88%|########8 | 29383/33327 [00:21<00:02, 1623.22it/s]Tokenizing mlm (train):  89%|########8 | 29548/33327 [00:22<00:02, 1574.59it/s]Tokenizing mlm (train):  89%|########9 | 29748/33327 [00:22<00:02, 1695.40it/s]Tokenizing mlm (train):  90%|########9 | 29920/33327 [00:22<00:02, 1635.10it/s]Tokenizing mlm (train):  90%|######### | 30098/33327 [00:22<00:01, 1676.07it/s]Tokenizing mlm (train):  91%|######### | 30267/33327 [00:22<00:01, 1671.45it/s]Tokenizing mlm (train):  91%|#########1| 30449/33327 [00:22<00:01, 1713.21it/s]Tokenizing mlm (train):  92%|#########1| 30651/33327 [00:22<00:01, 1801.57it/s]Tokenizing mlm (train):  93%|#########2| 30836/33327 [00:22<00:01, 1813.57it/s]Tokenizing mlm (train):  93%|#########3| 31034/33327 [00:22<00:01, 1862.52it/s]Tokenizing mlm (train):  94%|#########3| 31221/33327 [00:23<00:01, 1861.78it/s]Tokenizing mlm (train):  94%|#########4| 31408/33327 [00:23<00:01, 1804.22it/s]Tokenizing mlm (train):  95%|#########4| 31589/33327 [00:23<00:00, 1760.02it/s]Tokenizing mlm (train):  95%|#########5| 31766/33327 [00:23<00:00, 1736.65it/s]Tokenizing mlm (train):  96%|#########5| 31941/33327 [00:23<00:00, 1494.00it/s]Tokenizing mlm (train):  96%|#########6| 32099/33327 [00:23<00:00, 1516.43it/s]Tokenizing mlm (train):  97%|#########6| 32278/33327 [00:23<00:00, 1590.34it/s]Tokenizing mlm (train):  97%|#########7| 32483/33327 [00:23<00:00, 1717.42it/s]Tokenizing mlm (train):  98%|#########7| 32659/33327 [00:23<00:00, 1710.45it/s]Tokenizing mlm (train):  99%|#########8| 32833/33327 [00:24<00:00, 1625.47it/s]Tokenizing mlm (train):  99%|#########9| 33000/33327 [00:24<00:00, 1637.89it/s]Tokenizing mlm (train): 100%|#########9| 33166/33327 [00:24<00:00, 1544.23it/s]Tokenizing mlm (train): 100%|#########9| 33323/33327 [00:24<00:00, 1469.51it/s]Tokenizing mlm (train): 100%|##########| 33327/33327 [00:24<00:00, 1367.77it/s]
-[09/11/25 13:49:23] INFO     Split train: 33327 sentences, 977985 tokens, 1058484 wordpieces, 20 discarded                       microbert2/data/tokenize.py:131
-[09/11/25 13:49:23] INFO     Sample inst from mlm_dev:
-
-        {'tokens': ['ⲁⲛⲟⲕ', 'ⲡ', 'ⲣⲙⲣⲁϣ', 'ⲙⲁⲣⲉ', 'ϥ', 'ϣⲱⲡⲉ', 'ⲛ', 'ⲣⲉϥⲙⲓϣⲉ', 'ⲙⲛ', 'ⲛⲓⲙ', '·']}
- microbert2/data/tokenize.py:100
-Tokenizing mlm (dev):   0%|          | 0/1284 [00:00<?, ?it/s]Tokenizing mlm (dev):  25%|##5       | 323/1284 [00:00<00:00, 3188.14it/s]Tokenizing mlm (dev):  50%|#####     | 644/1284 [00:00<00:00, 3199.72it/s]Tokenizing mlm (dev):  75%|#######5  | 964/1284 [00:00<00:00, 2715.93it/s]Tokenizing mlm (dev):  97%|#########6| 1243/1284 [00:00<00:00, 2303.08it/s]Tokenizing mlm (dev): 100%|##########| 1284/1284 [00:00<00:00, 2432.17it/s]
-[09/11/25 13:49:23] INFO     Split dev: 1284 sentences, 21389 tokens, 24265 wordpieces, 0 discarded                              microbert2/data/tokenize.py:131
-[09/11/25 13:49:23] INFO     Sample inst from mlm_test:
-
-        {'tokens': ['ⲉϩⲣⲁⲓ', 'ⲉ', 'ⲡ', 'ⲉⲧ', 'ϩⲓⲧⲟⲩⲱⲱ', 'ϥ', '·']}
-            microbert2/data/tokenize.py:100
-Tokenizing mlm (test):   0%|          | 0/1284 [00:00<?, ?it/s]Tokenizing mlm (test):  25%|##5       | 326/1284 [00:00<00:00, 3197.02it/s]Tokenizing mlm (test):  50%|#####     | 646/1284 [00:00<00:00, 2941.38it/s]Tokenizing mlm (test):  73%|#######3  | 942/1284 [00:00<00:00, 2628.80it/s]Tokenizing mlm (test):  94%|#########4| 1208/1284 [00:00<00:00, 2175.47it/s]Tokenizing mlm (test): 100%|##########| 1284/1284 [00:00<00:00, 2299.04it/s]
-[09/11/25 13:49:24] INFO     Split test: 1284 sentences, 21389 tokens, 24265 wordpieces, 0 discarded                             microbert2/data/tokenize.py:131
-[09/11/25 13:49:24] INFO     Sample inst from pos_train:
-
-        {   'pos_label': [   'CONJ', 'ACOND_PPERS', 'V', 'PPERO', 'PUNCT', 'ADV', 'PPERS', 'FUT', 'V', 'PREP', 'PPERO', 'PREP',
-                     'ART', 'N', 'IMOD', 'PPERO', 'PUNCT', 'PDEM', 'CREL', 'APST', 'PPERS', 'V', 'PPERO', 'PREP', 'N',
-                     'PREP', 'ART', 'N', 'PUNCT'],
-    'tokens': [   'ϩⲟⲧⲁⲛ', 'ⲉⲕϣⲁⲛ', 'ⲧⲃⲃⲟ', 'ⲛ', '·', 'ⲧⲟⲧⲉ', 'ⲧⲛ', 'ⲛⲁ', 'ⲛⲁⲩ', 'ⲉⲣⲟ', 'ⲕ', 'ϩⲙ', 'ⲡ', 'ⲥⲱⲙⲁ', 'ⲙⲁⲩⲁⲁ',
-                  'ϥ', '·', 'ⲡⲁⲓ', 'ⲛⲧ', 'ⲁ', 'ⲕ', 'ⲁⲁ', 'ϥ', 'ⲛ', 'ⲃⲣⲣⲉ', 'ϩⲛ', 'ⲟⲩ', 'ⲙⲛⲧⲁⲥ', '·']}
-                                     microbert2/data/tokenize.py:100
-Tokenizing pos (train):   0%|          | 0/1089 [00:00<?, ?it/s]Tokenizing pos (train):  16%|#6        | 176/1089 [00:00<00:00, 1757.30it/s]Tokenizing pos (train):  33%|###2      | 355/1089 [00:00<00:00, 1773.30it/s]Tokenizing pos (train):  49%|####8     | 533/1089 [00:00<00:00, 1701.21it/s]Tokenizing pos (train):  65%|######4   | 704/1089 [00:00<00:00, 1701.17it/s]Tokenizing pos (train):  80%|########  | 875/1089 [00:00<00:00, 1609.68it/s]Tokenizing pos (train):  95%|#########5| 1037/1089 [00:00<00:00, 1424.96it/s]Tokenizing pos (train): 100%|##########| 1089/1089 [00:00<00:00, 1568.77it/s]
-[09/11/25 13:49:25] INFO     Split train: 1089 sentences, 27299 tokens, 29667 wordpieces, 0 discarded                            microbert2/data/tokenize.py:131
-[09/11/25 13:49:25] INFO     Sample inst from pos_dev:
-
-        {   'pos_label': [   'APREC', 'ART', 'N', 'PTC', 'V', 'APST', 'PPERS', 'V', 'PREP', 'V', 'PREP', 'ART', 'N', 'CONJ',
-                     'ART', 'N', 'CCIRC', 'PPERS', 'V', 'APST', 'PPERS', 'V', 'CCIRC', 'PPERS', 'V', 'PREP', 'PPERO',
-                     'CONJ', 'CFOC', 'APST', 'PDEM', 'V', 'PDEM', 'PINT', 'PUNCT', 'CONJ', 'PINT', 'COP', 'PDEM', 'N',
-                     'CREL', 'APST', 'PPERS', 'V', 'PPERO', 'PREP', 'PDEM', 'PUNCT', 'CONJ', 'PDEM', 'N', 'PREP',
-                     'PDEM', 'N', 'CREL', 'PDEM', 'V', 'PREP', 'PPERO'],
-    'tokens': [   'ⲛⲧⲉⲣⲉ', 'ⲡ', 'ⲥⲁⲃⲃⲁⲧⲟⲛ', 'ⲇⲉ', 'ϣⲱⲡⲉ', 'ⲁ', 'ϥ', 'ⲁⲣⲭⲉⲥⲑⲁⲓ', 'ⲛ', 'ϯⲥⲃⲱ', 'ϩⲛ', 'ⲧ', 'ⲥⲩⲛⲁⲅⲱⲅⲏ',
-                  'ⲁⲩⲱ', 'ⲡ', 'ⲙⲏⲏϣⲉ', 'ⲉ', 'ⲩ', 'ⲥⲱⲧⲙ', 'ⲁ', 'ⲩ', 'ⲣϣⲡⲏⲣⲉ', 'ⲉ', 'ⲩ', 'ϫⲱ', 'ⲙⲙⲟ', 'ⲥ', 'ϫⲉ', 'ⲛⲧ',
-                  'ⲁ', 'ⲡⲁⲓ', 'ϭⲛ', 'ⲛⲁⲓ', 'ⲧⲱⲛ', '.', 'ⲁⲩⲱ', 'ⲟⲩ', 'ⲧⲉ', 'ⲧⲁⲓ', 'ⲥⲟⲫⲓⲁ', 'ⲛⲧ', 'ⲁ', 'ⲩ', 'ⲧⲁⲁ', 'ⲥ',
-                  'ⲙ', 'ⲡⲁⲓ', '.', 'ⲁⲩⲱ', 'ⲛⲉⲓ', 'ϭⲟⲙ', 'ⲛ', 'ⲧⲉⲓ', 'ϭⲟⲧ', 'ⲉⲧⲉⲣⲉ', 'ⲡⲁⲓ', 'ⲉⲓⲣⲉ', 'ⲙⲙⲟ', 'ⲟⲩ']}
-                           microbert2/data/tokenize.py:100
-Tokenizing pos (dev):   0%|          | 0/381 [00:00<?, ?it/s]Tokenizing pos (dev):  36%|###5      | 136/381 [00:00<00:00, 1347.35it/s]Tokenizing pos (dev):  71%|#######1  | 271/381 [00:00<00:00, 1336.55it/s]Tokenizing pos (dev): 100%|##########| 381/381 [00:00<00:00, 1456.57it/s]
-[09/11/25 13:49:25] INFO     Split dev: 381 sentences, 10960 tokens, 11805 wordpieces, 0 discarded                               microbert2/data/tokenize.py:131
-[09/11/25 13:49:25] INFO     Sample inst from pos_test:
-
-        {   'pos_label': [   'ANEGJUS', 'N', 'V', 'PREP', 'PPERO', 'PUNCT', 'ART', 'CREL', 'V', 'PREP', 'PPERO', 'CONJ',
-                     'PPERI', 'ART', 'N', 'PREP', 'PPERO', 'AJUS', 'PPERS', 'V', 'PREP', 'PDEM', 'N', 'CONJ',
-                     'AOPT_PPERS', 'V', 'PREP', 'N', 'PUNCT'],
-    'tokens': [   'ⲙⲡⲣⲧⲣⲉ', 'ⲗⲁⲁⲩ', 'ⲉⲝⲁⲡⲁⲧⲁ', 'ⲙⲙⲟ', 'ϥ', '.', 'ⲡ', 'ⲉⲧ', 'ϫⲱ', 'ⲙⲙⲟ', 'ⲥ', 'ϫⲉ', 'ⲁⲛⲅ', 'ⲟⲩ', 'ⲥⲟⲫⲟⲥ',
-                  'ⲛϩⲏⲧ', 'ⲧⲏⲩⲧⲛ', 'ⲙⲁⲣⲉ', 'ϥ', 'ⲣⲥⲟϭ', 'ϩⲙ', 'ⲡⲉⲓ', 'ⲁⲓⲱⲛ', 'ϫⲉⲕⲁⲁⲥ', 'ⲉϥⲉ', 'ϣⲱⲡⲉ', 'ⲛ', 'ⲥⲟⲫⲟⲥ',
-                  '.']}
-    microbert2/data/tokenize.py:100
-Tokenizing pos (test):   0%|          | 0/403 [00:00<?, ?it/s]Tokenizing pos (test):  40%|####      | 162/403 [00:00<00:00, 1610.11it/s]Tokenizing pos (test):  80%|########  | 324/403 [00:00<00:00, 1520.48it/s]Tokenizing pos (test): 100%|##########| 403/403 [00:00<00:00, 1520.20it/s]
-[09/11/25 13:49:25] INFO     Split test: 403 sentences, 10373 tokens, 11261 wordpieces, 0 discarded                              microbert2/data/tokenize.py:131
-[09/11/25 13:49:36] INFO     ✓ Finished step "tokenized_text_data"                                                               site-packages/tango/step.py:774
-[09/11/25 13:49:36] INFO     ✓ Found output for step "raw_text_data" in cache...                                                 site-packages/tango/step.py:748
-[09/11/25 13:49:43] INFO     ✓ Found output for step "tokenized_text_data" in cache (needed by "model_inputs")...                site-packages/tango/step.py:741
-[09/11/25 13:49:43] INFO     ● Starting step "model_inputs"...                                                                   site-packages/tango/step.py:761
-[09/11/25 13:49:43] INFO     
-
-First train instance for mlm: {'tokens': ['ⲥⲟⲛ', 'ⲥⲛⲁⲩ', 'ⲕⲁⲧⲁ', 'ⲥⲁⲣⲝ', 'ⲁ', 'ⲩ', 'ⲃⲱⲕ', 'ⲉ', 'ⲩ', 'ϩⲉⲛⲉⲉⲧⲉ', '.'], 'input_ids': [1, 611, 706, 423, 813, 116, 136, 403, 120, 136, 5172, 12, 2], 'token_spans': [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12], 'attention_mask': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], 'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}         microbert2/data/combine.py:71
-[09/11/25 13:49:45] INFO     
-
-First train instance for pos: {'tokens': ['ⲉⲣϣⲁⲛ', 'ⲧ', 'ⲃⲁϣⲟⲣ', 'ⲁϣϣⲕⲁⲕ', 'ⲉⲃⲟⲗ', 'ⲁⲛ', 'ⲉⲧⲉ', 'ⲛⲧⲟⲕ', 'ⲡⲉ', 'ⲡ', 'ϩⲙϩⲁⲗ', 'ⲙ', 'ⲡ', 'ⲙⲁⲙⲙⲱⲛⲁⲥ', 'ϩⲛ', 'ϩⲉⲛ', 'ϩⲣⲟⲟⲩ', 'ⲉ', 'ⲩ', 'ⲟϣ', ',', 'ⲉⲣⲉ', 'ⲡ', 'ⲙⲟⲩⲓ', 'ⲧⲣⲣⲉ', 'ⲉⲧⲉ', 'ⲁⲛⲟⲕ', 'ⲡⲉ', 'ⲡ', 'ϩⲙϩⲁⲗ', 'ⲙ', 'ⲡⲉ', 'ⲭⲣⲓⲥⲧⲟⲥ', ','], 'pos_label': ['ACOND', 'ART', 'N', 'V', 'ADV', 'NEG', 'CREL', 'PPERI', 'COP', 'ART', 'N', 'PREP', 'ART', 'NPROP', 'PREP', 'ART', 'N', 'CREL', 'PPERS', 'VSTAT', 'PUNCT', 'CFOC', 'ART', 'N', 'V', 'CREL', 'PPERI', 'COP', 'ART', 'N', 'PREP', 'ART', 'N', 'PUNCT'], 'input_ids': [1, 777, 135, 4755, 2562, 282, 301, 370, 576, 265, 132, 550, 128, 132, 9530, 281, 343, 990, 120, 136, 1366, 10, 406, 132, 1680, 8122, 370, 445, 265, 132, 550, 128, 265, 532, 10, 2], 'token_spans': [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26, 27, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 32, 33, 33, 34, 34, 35, 35], 'attention_mask': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], 'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}                                                                                                         microbert2/data/combine.py:71
-[09/11/25 13:49:45] INFO     Rescaled train split for pos from 1089 to 3330                                                        microbert2/data/combine.py:78
-[09/11/25 13:49:45] INFO     mlm_train size: 33307 sentences, 2002596 words, 981632 wordpieces                                     microbert2/data/combine.py:92
-[09/11/25 13:49:45] INFO     mlm_dev size: 1284 sentences, 45346 words, 21697 wordpieces                                           microbert2/data/combine.py:92
-[09/11/25 13:49:45] INFO     mlm_test size: 1284 sentences, 45346 words, 21697 wordpieces                                          microbert2/data/combine.py:92
-[09/11/25 13:49:45] INFO     pos_train size: 3330 sentences, 173944 words, 84227 wordpieces                                        microbert2/data/combine.py:92
-[09/11/25 13:49:45] INFO     pos_dev size: 381 sentences, 22682 words, 11043 wordpieces                                            microbert2/data/combine.py:92
-[09/11/25 13:49:45] INFO     pos_test size: 403 sentences, 21552 words, 10455 wordpieces                                           microbert2/data/combine.py:92
-[09/11/25 13:50:11] INFO     ✓ Finished step "model_inputs"                                                                      site-packages/tango/step.py:774
-[09/11/25 13:50:11] INFO     ✓ Found output for step "raw_text_data" in cache (needed by "trained_model")...                     site-packages/tango/step.py:741
-[09/11/25 13:50:12] INFO     ✓ Found output for step "raw_text_data" in cache (needed by "trained_model")...                     site-packages/tango/step.py:741
-[09/11/25 13:50:12] INFO     ✓ Found output for step "model_inputs" in cache (needed by "trained_model")...                      site-packages/tango/step.py:741
-[09/11/25 13:50:12] INFO     ✓ Found output for step "raw_text_data" in cache (needed by "trained_model")...                     site-packages/tango/step.py:741
-[09/11/25 13:50:13] INFO     ● Starting step "trained_model"...                                                                  site-packages/tango/step.py:761
-[09/11/25 13:50:13] INFO     Training on 1 GPU                                                                                           microbert2/train.py:208
-[09/11/25 13:50:13] INFO     Initializing a new BERT model with config BertConfig {
-  "attention_dropout": 0.1,
-  "attention_probs_dropout_prob": 0.1,
-  "classifier_dropout": null,
-  "embedding_dropout": 0.1,
-  "global_attn_every_n_layers": 2,
-  "hidden_act": "gelu",
-  "hidden_dropout_prob": 0.1,
-  "hidden_size": 128,
-  "initializer_range": 0.02,
-  "intermediate_size": 192,
-  "layer_norm_eps": 1e-12,
-  "max_position_embeddings": 512,
-  "mlp_dropout": 0.1,
-  "model_type": "bert",
-  "num_attention_heads": 4,
-  "num_hidden_layers": 4,
-  "pad_token_id": 0,
-  "position_embedding_type": "absolute",
-  "transformers_version": "4.56.1",
-  "type_vocab_size": 2,
-  "use_cache": true,
-  "vocab_size": 10000
-}
-                                                       microbert2/microbert/model/encoder.py:27
-[09/11/25 13:50:25] INFO     Initialized MicroBERT model: MicroBERTModel(
-  (encoder): BertEncoder(
-    (encoder): BertModel(
-      (embeddings): BertEmbeddings(
-        (word_embeddings): Embedding(10000, 128, padding_idx=0)
-        (position_embeddings): Embedding(512, 128)
-        (token_type_embeddings): Embedding(2, 128)
-        (LayerNorm): LayerNorm((128,), eps=1e-12, elementwise_affine=True)
-        (dropout): Dropout(p=0.1, inplace=False)
-      )
-      (encoder): BertEncoder(
-        (layer): ModuleList(
-          (0-3): 4 x BertLayer(
-            (attention): BertAttention(
-              (self): BertSdpaSelfAttention(
-                (query): Linear(in_features=128, out_features=128, bias=True)
-                (key): Linear(in_features=128, out_features=128, bias=True)
-                (value): Linear(in_features=128, out_features=128, bias=True)
-                (dropout): Dropout(p=0.1, inplace=False)
-              )
-              (output): BertSelfOutput(
-                (dense): Linear(in_features=128, out_features=128, bias=True)
-                (LayerNorm): LayerNorm((128,), eps=1e-12, elementwise_affine=True)
-                (dropout): Dropout(p=0.1, inplace=False)
-              )
-            )
-            (intermediate): BertIntermediate(
-              (dense): Linear(in_features=128, out_features=192, bias=True)
-              (intermediate_act_fn): GELUActivation()
-            )
-            (output): BertOutput(
-              (dense): Linear(in_features=192, out_features=128, bias=True)
-              (LayerNorm): LayerNorm((128,), eps=1e-12, elementwise_affine=True)
-              (dropout): Dropout(p=0.1, inplace=False)
-            )
-          )
-        )
-      )
-    )
-  )
-  (task_heads): ModuleList(
-    (0): TiedRobertaLMHead(
-      (dense): Linear(in_features=128, out_features=128, bias=True)
-      (layer_norm): LayerNorm((128,), eps=1e-12, elementwise_affine=True)
-    )
-    (1): XposHead(
-      (linear): Linear(in_features=128, out_features=58, bias=True)
-      (accuracy): MulticlassAccuracy()
-    )
-  )
-) microbert2/microbert/model/model.py:80
-Training:   0%|          | 0/100000 [00:00<?, ?it/s]Training:   0%|          | 0/100000 [00:06<?, ?it/s]
-[09/11/25 13:51:00] ERROR    Uncaught exception
-Traceback (most recent call last):
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/tango/step.py", line 483, in _run_with_work_dir
-    result = self.run(**kwargs)
-  File "/geode2/home/u070/partkaew/BigRed200/microbert2/microbert2/train.py", line 173, in run
-    return self._train(
-  File "/geode2/home/u070/partkaew/BigRed200/microbert2/microbert2/train.py", line 308, in _train
-    final_model = _train(  # type: ignore[assignment]
-  File "/geode2/home/u070/partkaew/BigRed200/microbert2/microbert2/train.py", line 567, in _train
-    for step, (epoch, batch) in train_batch_iterator:
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/more_itertools/more.py", line 375, in __next__
-    return next(self._it)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/tqdm/std.py", line 1181, in __iter__
-    for obj in iterable:
-  File "/geode2/home/u070/partkaew/BigRed200/microbert2/microbert2/train.py", line 815, in _cycle_through_epochs
-    for batch in chunked(dataloader, grad_accum):
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/more_itertools/more.py", line 161, in chunked
-    iterator = iter(partial(take, n, iter(iterable)), [])
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 489, in __iter__
-    self._iterator = self._get_iterator()
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 427, in _get_iterator
-    return _MultiProcessingDataLoaderIter(self)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1172, in __init__
-    w.start()
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/process.py", line 121, in start
-    self._popen = self._Popen(self)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/context.py", line 224, in _Popen
-    return _default_context.get_context().Process._Popen(process_obj)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/context.py", line 288, in _Popen
-    return Popen(process_obj)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/popen_spawn_posix.py", line 32, in __init__
-    super().__init__(process_obj)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/popen_fork.py", line 19, in __init__
-    self._launch(process_obj)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/popen_spawn_posix.py", line 47, in _launch
-    reduction.dump(process_obj, fp)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/reduction.py", line 60, in dump
-    ForkingPickler(file, protocol).dump(obj)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/torch/multiprocessing/reductions.py", line 618, in reduce_storage
-    fd, size = storage._share_fd_cpu_()
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/torch/storage.py", line 451, in wrapper
-    return fn(self, *args, **kwargs)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/torch/storage.py", line 526, in _share_fd_cpu_
-    return super()._share_fd_cpu_(*args, **kwargs)
-RuntimeError: unable to mmap 104 bytes from file </torch_157723_2066527932_63388>: Cannot allocate memory (12)
-[09/11/25 13:51:00] ERROR    ✗ Step "trained_model" failed                                                                       site-packages/tango/step.py:782
-[09/11/25 13:51:00] ERROR    Uncaught exception
-Traceback (most recent call last):
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/tango/step.py", line 483, in _run_with_work_dir
-    result = self.run(**kwargs)
-  File "/geode2/home/u070/partkaew/BigRed200/microbert2/microbert2/train.py", line 173, in run
-    return self._train(
-  File "/geode2/home/u070/partkaew/BigRed200/microbert2/microbert2/train.py", line 308, in _train
-    final_model = _train(  # type: ignore[assignment]
-  File "/geode2/home/u070/partkaew/BigRed200/microbert2/microbert2/train.py", line 567, in _train
-    for step, (epoch, batch) in train_batch_iterator:
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/more_itertools/more.py", line 375, in __next__
-    return next(self._it)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/tqdm/std.py", line 1181, in __iter__
-    for obj in iterable:
-  File "/geode2/home/u070/partkaew/BigRed200/microbert2/microbert2/train.py", line 815, in _cycle_through_epochs
-    for batch in chunked(dataloader, grad_accum):
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/more_itertools/more.py", line 161, in chunked
-    iterator = iter(partial(take, n, iter(iterable)), [])
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 489, in __iter__
-    self._iterator = self._get_iterator()
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 427, in _get_iterator
-    return _MultiProcessingDataLoaderIter(self)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1172, in __init__
-    w.start()
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/process.py", line 121, in start
-    self._popen = self._Popen(self)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/context.py", line 224, in _Popen
-    return _default_context.get_context().Process._Popen(process_obj)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/context.py", line 288, in _Popen
-    return Popen(process_obj)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/popen_spawn_posix.py", line 32, in __init__
-    super().__init__(process_obj)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/popen_fork.py", line 19, in __init__
-    self._launch(process_obj)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/popen_spawn_posix.py", line 47, in _launch
-    reduction.dump(process_obj, fp)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/multiprocessing/reduction.py", line 60, in dump
-    ForkingPickler(file, protocol).dump(obj)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/torch/multiprocessing/reductions.py", line 618, in reduce_storage
-    fd, size = storage._share_fd_cpu_()
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/torch/storage.py", line 451, in wrapper
-    return fn(self, *args, **kwargs)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/torch/storage.py", line 526, in _share_fd_cpu_
-    return super()._share_fd_cpu_(*args, **kwargs)
-RuntimeError: unable to mmap 104 bytes from file </torch_157723_2066527932_63388>: Cannot allocate memory (12)
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/tango/executor.py", line 166, in execute_step_graph
-    self.execute_step(step)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/tango/executor.py", line 132, in execute_step
-    step.ensure_result(self.workspace)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/tango/step.py", line 692, in ensure_result
-    self.result(workspace)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/tango/step.py", line 658, in result
-    return self._run_with_work_dir(workspace, needed_by=needed_by)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/tango/step.py", line 487, in _run_with_work_dir
-    workspace.step_failed(self, e)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/tango/workspaces/local_workspace.py", line 313, in step_failed
-    step_info = self.step_info(step)
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/tango/workspaces/local_workspace.py", line 183, in step_info
-    with SqliteDict(self.step_info_file) as d:
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/sqlitedict.py", line 222, in __init__
-    self.conn = self._new_conn()
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/sqlitedict.py", line 235, in _new_conn
-    return SqliteMultithread(
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/site-packages/sqlitedict.py", line 463, in __init__
-    self.start()
-  File "/N/u/partkaew/BigRed200/.conda/envs/mb2/lib/python3.10/threading.py", line 935, in start
-    _start_new_thread(self._bootstrap, ())
-RuntimeError: can't start new thread
-[09/11/25 13:51:00] ERROR    ✗ Run wired-impala finished with errors                                                              site-packages/tango/cli.py:208
-                                                                                                                                                                
- ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
- ┃ Step Name           ┃ Status      ┃ Results                                                                                                                 ┃
- ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
- │ model_inputs        │ ✓ succeeded │ /geode2/home/u070/partkaew/BigRed200/microbert2/workspace/cache/CombineDatasets-5tFWRcWCvLo5nEvFhoH77vVspudDzucu        │
- │ raw_text_data       │ ✓ succeeded │ /geode2/home/u070/partkaew/BigRed200/microbert2/workspace/cache/ReadWhitespaceTokenizedText-RorW7HNdn4QQxufoHAaazqPKtq… │
- │ tokenized_text_data │ ✓ succeeded │ /geode2/home/u070/partkaew/BigRed200/microbert2/workspace/cache/SubwordTokenize-2HA3sSnMUQWVMm9HFshrCfunBA9Gz9E7        │
- │ tokenizer           │ ✓ succeeded │ /geode2/home/u070/partkaew/BigRed200/microbert2/workspace/cache/TrainTokenizer-5grKVkmehXZuYx2hEDFHFr5JjFDtPsGs         │
- │ trained_model       │ ✗ failed    │ N/A                                                                                                                     │
- └─────────────────────┴─────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-                                                                    ✗ 1 failed, ✓ 4 succeeded                                                                   
-                                                                                                                                                                

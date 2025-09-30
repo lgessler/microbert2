@@ -107,7 +107,7 @@ class MTTask(MicroBERTTask, CustomDetHash):
             proportion: float = 0.1,
             mbart_tokenizer_name: str = "facebook/mbart-large-50-many-to-one-mmt",
             tgt_lang_code: str = "en_XX",
-            max_tgt_len: int = 48,
+            max_tgt_len: int = 128,
     ):
         self._head = head
         self._dataset = {

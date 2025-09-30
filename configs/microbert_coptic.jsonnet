@@ -30,6 +30,10 @@ local test_conllu_path = "data/cop/cop_scriptorium-ud-test.conllu";
 local train_mt_path = "../scb_mt_enth_2020_tsv/train.tsv";
 local test_mt_path = "../scb_mt_enth_2020_tsv/test.tsv";
 local dev_mt_path = "../scb_mt_enth_2020_tsv/dev.tsv";
+
+local train_coptic="data/cop/train.tsv"
+local test_coptic="data/cop/test.tsv"
+local dev_coptic="data/cop/dev.tsv"
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
 local hidden_size = 128;
@@ -79,7 +83,7 @@ local lr_scheduler = {
 // Some set up, don't modify ------------------------------------------------------
 local util = import 'lib/util.libsonnet';
 local model_path = (
-    "./workspace/models/" + language + "_" + experiment_name + "_" + util.stringifyObject(bert_config)
+    "./workspace/models/" + language + "_" + experiment_name + "_" + util.stringifyObject(bert_config) + "MT-MLM-coptic"
 );
 local tokenizer = { pretrained_model_name_or_path: model_path };
 
@@ -94,9 +98,9 @@ local mt_task = {
         embedding_dim: hidden_size,
         use_layer_mix: false,
     },
-    train_mt_path : train_mt_path,
-    test_mt_path : test_mt_path,
-    dev_mt_path : dev_mt_path,
+    train_mt_path : train_coptic,
+    test_mt_path : test_coptic,
+    dev_mt_path : dev_coptic,
 };
 local mlm_task = {
     type: "microbert2.microbert.tasks.mlm.MLMTask",
@@ -124,7 +128,7 @@ local parse_task = {
     dev_conllu_path: dev_conllu_path,
     test_conllu_path: test_conllu_path,
 };
-local tasks = [mlm_task, mt_task];
+local tasks = [mlm_task,mt_task];
 
 
 // --------------------------------------------------------------------------------
