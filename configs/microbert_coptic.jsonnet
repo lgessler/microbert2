@@ -31,9 +31,9 @@ local train_mt_path = "../scb_mt_enth_2020_tsv/train.tsv";
 local test_mt_path = "../scb_mt_enth_2020_tsv/test.tsv";
 local dev_mt_path = "../scb_mt_enth_2020_tsv/dev.tsv";
 
-local train_coptic="data/cop/train.tsv"
-local test_coptic="data/cop/test.tsv"
-local dev_coptic="data/cop/dev.tsv"
+local train_xcoptic="data/cop/train.tsv";
+local test_coptic="data/cop/test.tsv";
+local dev_coptic="data/cop/dev.tsv";
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
 local hidden_size = 128;
