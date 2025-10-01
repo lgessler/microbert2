@@ -99,7 +99,6 @@ local mt_task = {
         use_layer_mix: false,
     },
     train_mt_path : train_coptic,
-    test_mt_path : test_coptic,
     dev_mt_path : dev_coptic,
 };
 local mlm_task = {
