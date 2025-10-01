@@ -32,7 +32,7 @@ class MTHead(torch.nn.Module, FromParams):
         self.use_layer_mix = use_layer_mix
 
         if self.use_layer_mix:
-            self.mix = ScalarMix(num_layers)
+            self.mix = ScalarMix(num_layers) 
 
         self.mbart = AutoModelForSeq2SeqLM.from_pretrained(mbert_model_name)
         d_model = self.mbart.config.d_model  
@@ -57,8 +57,10 @@ class MTHead(torch.nn.Module, FromParams):
                 encoder_attention_mask: Optional[torch.LongTensor]=None,
                 **kwargs,
                 ) -> Dict[str, torch.Tensor]:
-
-        enc = self._mix_layers(hidden_masked) 
+        if self.use_layer_mix:
+            enc = self._mix_layers(hidden_masked)
+        else:
+            enc = hidden_masked[-1]
 
         if self.proj is not None:
             enc = self.proj(enc)
@@ -104,7 +106,7 @@ class MTTask(MicroBERTTask, CustomDetHash):
             dev_mt_path: str,
             test_mt_path: Optional[str] = None,
             delimiter: str = "\t",
-            proportion: float = 0.1,
+            proportion: float = 0.1, #0.2 0.5 coptic
             mbart_tokenizer_name: str = "facebook/mbart-large-50-many-to-one-mmt",
             tgt_lang_code: str = "en_XX",
             max_tgt_len: int = 128,
@@ -121,8 +123,8 @@ class MTTask(MicroBERTTask, CustomDetHash):
 
         # MBART 
         self._tok = AutoTokenizer.from_pretrained(mbart_tokenizer_name,use_fast=False)
-        self._tok.add_special_tokens({"additional_special_tokens": ["<cop_XX>"]})
-        #self._tok.src_lang = ""  
+        #self._tok.add_special_tokens({"additional_special_tokens": ["<cop_XX>"]})
+        self._tok.src_lang = "ar_AR"  
         self._tok.tgt_lang = tgt_lang_code
         self._pad = self._tok.pad_token_id
         self._max_tgt_len = max_tgt_len
@@ -181,7 +183,7 @@ class MTTask(MicroBERTTask, CustomDetHash):
         return self._proportion
     @property
     def progress_items(self):
-        return ["perplexity"]
+        return ["perplexity"," loss"]
     @property
     def data_keys(self):
         return ["tgt_input_ids", "tgt_attention_mask"]

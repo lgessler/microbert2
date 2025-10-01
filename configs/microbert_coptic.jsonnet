@@ -4,7 +4,7 @@
 local language = "coptic";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "mx_modern";
+local experiment_name = "mx_modern_coptic_mlm_mt";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -83,7 +83,7 @@ local lr_scheduler = {
 // Some set up, don't modify ------------------------------------------------------
 local util = import 'lib/util.libsonnet';
 local model_path = (
-    "./workspace/models/" + language + "_" + experiment_name + "_" + util.stringifyObject(bert_config) + "MT-MLM-coptic"
+    "./workspace/models/" + language + "_" + experiment_name + "_" + util.stringifyObject(bert_config)"
 );
 local tokenizer = { pretrained_model_name_or_path: model_path };
 
@@ -143,6 +143,7 @@ local model = {
         type: bert_type,
         tokenizer: tokenizer,
         bert_config: bert_config,
+        pretrained_checkpoint: "...",
     }
 };
 

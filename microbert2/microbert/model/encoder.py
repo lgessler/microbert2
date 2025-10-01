@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import torch
 import torch.nn.functional as F
@@ -20,13 +20,17 @@ class MicroBERTEncoder(torch.nn.Module, Registrable):
 
 @MicroBERTEncoder.register("bert")
 class BertEncoder(MicroBERTEncoder):
-    def __init__(self, tokenizer: Tokenizer, bert_config: Dict[str, Any]):
+    def __init__(self, tokenizer: Tokenizer, bert_config: Dict[str, Any], pretrained_checkpoint: Optional[str] = None):
         super().__init__()
         self.pad_id = tokenizer.pad_token_id
         config = BertConfig(**bert_config, vocab_size=len(tokenizer.get_vocab()))
         logger.info(f"Initializing a new BERT model with config {config}")
         self.config = config
-        self.encoder = BertModel(config=config, add_pooling_layer=False)
+        if pretrained_checkpoint:
+            logger.info(f"Loading pretrained BERT model from {pretrained_checkpoint}")
+            self.encoder = BertModel.from_pretrained(pretrained_checkpoint, config=config, add_pooling_layer=False)
+        else:
+            self.encoder = BertModel(config=config, add_pooling_layer=False)
         self.tokenizer = tokenizer
 
     def forward(self, *args, **kwargs):
