@@ -143,7 +143,6 @@ local model = {
         type: bert_type,
         tokenizer: tokenizer,
         bert_config: bert_config,
-        pretrained_checkpoint: "...",
     }
 };
 
