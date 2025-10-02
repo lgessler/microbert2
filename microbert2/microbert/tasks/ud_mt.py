@@ -183,7 +183,7 @@ class MTTask(MicroBERTTask, CustomDetHash):
         return self._proportion
     @property
     def progress_items(self):
-        return ["perplexity"," loss"]
+        return ["perplexity","loss"]
     @property
     def data_keys(self):
         return ["tgt_input_ids", "tgt_attention_mask"]
