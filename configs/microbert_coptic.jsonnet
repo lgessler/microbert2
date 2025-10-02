@@ -83,7 +83,7 @@ local lr_scheduler = {
 // Some set up, don't modify ------------------------------------------------------
 local util = import 'lib/util.libsonnet';
 local model_path = (
-    "./workspace/models/" + language + "_" + experiment_name + "_" + util.stringifyObject(bert_config)"
+    "./workspace/models/" + language + "_" + experiment_name + "_" + util.stringifyObject(bert_config)
 );
 local tokenizer = { pretrained_model_name_or_path: model_path };
 
