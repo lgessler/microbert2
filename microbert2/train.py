@@ -281,7 +281,6 @@ class Train(Step):
             auto_aggregate_val_metric=auto_aggregate_val_metric,
             remove_stale_checkpoints=remove_stale_checkpoints,
             world_size=num_workers,
-            run_name=run_name,
         )
 
         final_model: Model
@@ -300,6 +299,7 @@ class Train(Step):
                     validation_dataloader,
                     callbacks,
                     get_extra_imported_modules(),
+                    run_name,
                 ),
                 nprocs=num_workers,
             )
@@ -319,6 +319,7 @@ class Train(Step):
                 train_dataloader,
                 validation_dataloader=validation_dataloader,
                 callbacks=callbacks,
+                run_name=run_name,
             )
             assert final_model is not None
             final_model = final_model.cpu()
@@ -344,6 +345,7 @@ def _train(
     validation_dataloader: Optional[Lazy[DataLoader]] = None,
     callbacks: Optional[List[Lazy[TrainCallback]]] = None,
     include_package: Optional[Set[str]] = None,
+    run_name: Optional[str] = None
 ) -> Optional[Model]:
     # Set random seeds.
     set_seed_all(config.seed)
@@ -367,7 +369,7 @@ def _train(
         model=model,
     )
     default_name = Path(config.work_dir).name
-    tb_name = (config.run_name or default_name).replace(os.sep, "_")
+    tb_name = (run_name or default_name).replace(os.sep, "_")
     run_dir = Path(config.work_dir) / "tensorboard" / tb_name
     if config.is_distributed:
         run_dir = run_dir / f"rank{config.worker_id}"
