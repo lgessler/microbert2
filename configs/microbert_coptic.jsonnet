@@ -128,7 +128,7 @@ local parse_task = {
     dev_conllu_path: dev_conllu_path,
     test_conllu_path: test_conllu_path,
 };
-local tasks = [mlm_task,mt_task];
+local tasks = [mlm_task];
 
 
 // --------------------------------------------------------------------------------
@@ -208,6 +208,7 @@ local val_dataloader = {
         // Begin training
         trained_model: {
             type: "microbert2.train::train",
+            run_name: "coptic_mlm_mbartFrozen_v1",
             model: model,
             dataset_dict: { type: "ref", ref: "model_inputs" },
             training_engine: training_engine,

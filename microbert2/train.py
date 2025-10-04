@@ -95,6 +95,7 @@ class Train(Step):
         auto_aggregate_val_metric: bool = True,
         callbacks: Optional[List[Lazy[TrainCallback]]] = None,
         remove_stale_checkpoints: bool = True,
+        run_name: Optional[str] = None,
     ) -> Model:
         """
         Run a basic training loop to train the ``model``.
@@ -193,6 +194,7 @@ class Train(Step):
             auto_aggregate_val_metric=auto_aggregate_val_metric,
             callbacks=callbacks,
             remove_stale_checkpoints=remove_stale_checkpoints,
+            run_name=run_name,
         )
 
     def _get_devices(self, device_count: int) -> List[int]:
@@ -236,6 +238,7 @@ class Train(Step):
         auto_aggregate_val_metric: bool = True,
         callbacks: Optional[List[Lazy[TrainCallback]]] = None,
         remove_stale_checkpoints: bool = True,
+        run_name: Optional[str] = None
     ) -> Model:
 
         is_distributed = False
@@ -278,6 +281,7 @@ class Train(Step):
             auto_aggregate_val_metric=auto_aggregate_val_metric,
             remove_stale_checkpoints=remove_stale_checkpoints,
             world_size=num_workers,
+            run_name=run_name,
         )
 
         final_model: Model
@@ -362,9 +366,12 @@ def _train(
         train_config=config,
         model=model,
     )
-
-    writer = SummaryWriter(str(config.work_dir / "tensorboard"))
-
+    default_name = Path(config.work_dir).name
+    tb_name = (config.run_name or default_name).replace(os.sep, "_")
+    run_dir = Path(config.work_dir) / "tensorboard" / tb_name
+    if config.is_distributed:
+        run_dir = run_dir / f"rank{config.worker_id}"
+    writer = SummaryWriter(str(run_dir))
     # Check working directory to see if we should recover from a previous run.
     initial_state: Optional[Dict[str, Any]] = None
     if config.state_path.exists():
