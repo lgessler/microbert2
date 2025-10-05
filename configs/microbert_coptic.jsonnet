@@ -4,7 +4,7 @@
 local language = "coptic";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "mx_modern_coptic_mlm_mt";
+local experiment_name = "mx_modern_coptic_mlm_mt_unfrozen_top_2";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
