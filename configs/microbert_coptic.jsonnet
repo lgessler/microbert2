@@ -97,6 +97,8 @@ local mt_task = {
         num_layers: num_layers,
         embedding_dim: hidden_size,
         use_layer_mix: false,
+        freeze_decoder: true,
+        train_last_k_decoder_layers: 2 
     },
     train_mt_path : train_coptic,
     test_mt_path : test_coptic,
@@ -128,7 +130,7 @@ local parse_task = {
     dev_conllu_path: dev_conllu_path,
     test_conllu_path: test_conllu_path,
 };
-local tasks = [mlm_task];
+local tasks = [mlm_task,mt_task];
 
 
 // --------------------------------------------------------------------------------

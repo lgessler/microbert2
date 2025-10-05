@@ -27,6 +27,7 @@ class MTHead(torch.nn.Module, FromParams):
             mbert_model_name: str = "facebook/mbart-large-50-many-to-many-mmt",
             use_layer_mix: bool = True,
             freeze_decoder: bool = True,
+            train_last_k_decoder_layers: int = 0
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
@@ -40,10 +41,25 @@ class MTHead(torch.nn.Module, FromParams):
             self.proj = torch.nn.Linear(embedding_dim, d_model)
             logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
 
-        if  freeze_decoder:
-            for param in self.mbart.model.decoder.parameters():
-                param.requires_grad = False
+        if freeze_decoder and train_last_k_decoder_layers <= 0:
+            for p in self.mbart.model.decoder.parameters():
+                p.requires_grad = False
             logger.info("Decoder frozen")
+        elif train_last_k_decoder_layers > 0:
+            # freeze all first
+            for p in self.mbart.model.decoder.parameters():
+                p.requires_grad = False
+            # unfreeze top-K layers
+            layers = self.mbart.model.decoder.layers
+            K = min(train_last_k_decoder_layers, len(layers))
+            for layer in layers[-K:]:
+                for p in layer.parameters():
+                    p.requires_grad = True
+            logger.info(f"Decoder top {K} layer(s) unfrozen")
+        else:
+            logger.info("Decoder fully trainable")
+
+
 
     def _mix_layers(self, hidden_masked: List[torch.Tensor]) -> torch.Tensor:
         if self.use_layer_mix:
