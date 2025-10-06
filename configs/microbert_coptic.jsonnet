@@ -4,7 +4,7 @@
 local language = "coptic";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "mx_modern_coptic_mlm_mt_unfrozen_top_2";
+local experiment_name = "mx_modern_coptic_mlm_mt_all_unfrozen";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -97,8 +97,8 @@ local mt_task = {
         num_layers: num_layers,
         embedding_dim: hidden_size,
         use_layer_mix: false,
-        freeze_decoder: true,
-        train_last_k_decoder_layers: 2 
+        freeze_decoder: false,
+        train_last_k_decoder_layers: 0 
     },
     train_mt_path : train_coptic,
     test_mt_path : test_coptic,
@@ -210,7 +210,7 @@ local val_dataloader = {
         // Begin training
         trained_model: {
             type: "microbert2.train::train",
-            run_name: "coptic_mlm_mt_unfrozen_top_2",
+            run_name: "coptic_mlm_mt_all_unfrozen",
             model: model,
             dataset_dict: { type: "ref", ref: "model_inputs" },
             training_engine: training_engine,

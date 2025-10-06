@@ -41,7 +41,7 @@ class MTHead(torch.nn.Module, FromParams):
             self.proj = torch.nn.Linear(embedding_dim, d_model)
             logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
 
-        if freeze_decoder and train_last_k_decoder_layers <= 0:
+        if freeze_decoder and train_last_k_decoder_layers == 0:
             for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = False
             logger.info("Decoder frozen")
@@ -57,6 +57,8 @@ class MTHead(torch.nn.Module, FromParams):
                     p.requires_grad = True
             logger.info(f"Decoder top {K} layer(s) unfrozen")
         else:
+            for p in self.mbart.model.decoder.parameters():
+                p.requires_grad = True
             logger.info("Decoder fully trainable")
 
 
