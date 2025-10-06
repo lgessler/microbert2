@@ -97,8 +97,8 @@ local mt_task = {
         num_layers: num_layers,
         embedding_dim: hidden_size,
         use_layer_mix: false,
-        freeze_decoder: false,
-        train_last_k_decoder_layers: 0 
+        freeze_decoder: true,
+        train_last_k_decoder_layers: 4 
     },
     train_mt_path : train_coptic,
     test_mt_path : test_coptic,
@@ -210,7 +210,7 @@ local val_dataloader = {
         // Begin training
         trained_model: {
             type: "microbert2.train::train",
-            run_name: "coptic_mlm_mt_all_unfrozen",
+            run_name: "coptic_mlm_mt_all_unfrozen_top_4",
             model: model,
             dataset_dict: { type: "ref", ref: "model_inputs" },
             training_engine: training_engine,
