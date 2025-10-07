@@ -33,7 +33,6 @@ class XposHead(torch.nn.Module, FromParams):
         self.use_layer_mix = use_layer_mix
         if self.use_layer_mix:
             self.mix = ScalarMix(num_layers)
-        self._prev_step_training = True
 
     def forward(
         self,  # type: ignore
@@ -80,18 +79,11 @@ class XposHead(torch.nn.Module, FromParams):
         if pos_label is not None:
             flat_preds = preds.masked_select(mask)
             flat_tags = pos_label.masked_select(mask)
-
-            if self._prev_step_training != self.training:
-                split = "val" if self.training else "train"
-                print()
-                logger.info(f"{split} POS accuracy: {self.accuracy.compute() * 100}")
-                self.accuracy.reset()
-                self._prev_step_training = self.training
-
-            self.accuracy.update(flat_preds.clone(), flat_tags.clone())
-            acc = self.accuracy.compute()
             outputs["loss"] = sequence_cross_entropy_with_logits(logits, pos_label, mask, average="token")
-            outputs["accuracy"] = acc * 100
+            # Compute accuracy JUST for this batch
+            self.accuracy.update(flat_preds.clone(), flat_tags.clone())
+            acc = self.accuracy.compute() * 100
+            outputs["accuracy"] = acc
 
         return outputs
 
@@ -147,7 +139,9 @@ class UDPOSTask(MicroBERTTask, CustomDetHash):
         return "pos"
 
     def construct_head(self, model):
-        return self._head.construct(num_tags=len(self._tags))
+        self._head = self._head.construct(num_tags=len(self._tags))
+        logger.info(f"UD POS tagger head initialized with {len(self._tags)} tags")
+        return self._head
 
     @property
     def data_keys(self):
@@ -179,3 +173,6 @@ class UDPOSTask(MicroBERTTask, CustomDetHash):
     @property
     def progress_items(self):
         return ["accuracy"]
+
+    def reset_metrics(self):
+        self._head.accuracy.reset()

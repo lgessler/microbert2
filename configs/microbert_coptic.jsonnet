@@ -60,8 +60,8 @@ local bert_config = {
 };
 
 // Training and Optimization ------------------------------------------------------
-local batch_size = 256;
-local grad_accum = 1;
+local batch_size = 64;
+local grad_accum = 4;
 local effective_batch_size = grad_accum * batch_size;
 local num_steps = 1e5;
 local validate_every = 1000;  // in steps
@@ -166,6 +166,9 @@ local train_dataloader = {
     batch_size: batch_size,
     collate_fn: collate_fn,
     pin_memory: true,
+    num_workers: 2,
+    prefetch_factor: 4,
+    persistent_workers: true,
 };
 local val_dataloader = {
     shuffle: false,
@@ -220,7 +223,7 @@ local val_dataloader = {
             train_steps: num_steps,
             grad_accum: grad_accum,
             validate_every: validate_every,
-            checkpoint_every: 100,
+            checkpoint_every: 1000,
             validation_split: "dev",
             validation_dataloader: val_dataloader,
             val_metric_name: "mlm_perplexity",
@@ -230,7 +233,8 @@ local val_dataloader = {
                     type: "microbert2.microbert.model.model::write_model",
                     path: model_path,
                     model_attr: "encoder.encoder"
-                }
+                },
+                {type: "microbert2.microbert.model.model::reset_metrics"}
             ],
         },
         //final_metrics: {

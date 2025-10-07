@@ -102,3 +102,10 @@ class MicroBERTTask(Registrable):
         Keys produced by the head which should be logged during training.
         """
         return []
+
+    def reset_metrics(self) -> None:
+        """
+        Invoked at the beginning and end of every validation pass. When this method is invoked,
+        any state which is maintained in order to calculate evaluation metrics should be reset.
+        """
+        pass

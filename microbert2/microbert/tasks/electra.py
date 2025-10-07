@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tango.common import Lazy
 from tango.integrations.transformers import Tokenizer
+from torchmetrics import Accuracy
+from torchmetrics.text import Perplexity
 from transformers.activations import gelu
 
 from microbert2.microbert.model.model import Model
@@ -40,7 +42,7 @@ class TiedElectraGeneratorPredictions(nn.Module):
 class ElectraHead(nn.Module):
     """Head for the ELECTRA task"""
 
-    def __init__(self, config, tokenizer, embedding_weights, temperature=1.0, rtd_weight=50):
+    def __init__(self, config, tokenizer, embedding_weights, temperature, rtd_weight):
         super().__init__()
         self.tokenizer = tokenizer
         self.generator_head = TiedElectraGeneratorPredictions(config, embedding_weights)
@@ -48,6 +50,8 @@ class ElectraHead(nn.Module):
         self.vocab_size = config.vocab_size
         self.temperature = temperature
         self.rtd_weight = rtd_weight
+        self.accuracy = Accuracy(task="binary")
+        self.perplexity = Perplexity()
 
     def forward(self, hidden_masked, input_ids, attention_mask, token_type_ids, labels, encoder, **kwargs):
         # Generate MLM predictions using last layer
@@ -56,7 +60,10 @@ class ElectraHead(nn.Module):
         if not (labels != -100).any():
             masked_lm_loss = torch.tensor(0.0, device=hidden_masked[-1].device)
         else:
-            masked_lm_loss = F.cross_entropy(mlm_logits.view(-1, self.vocab_size), labels.view(-1), ignore_index=-100)
+            flat_mlm_logits = mlm_logits.view(-1, self.vocab_size)
+            flat_mlm_labels = labels.view(-1)
+            masked_lm_loss = F.cross_entropy(flat_mlm_logits, flat_mlm_labels, ignore_index=-100)
+            self.perplexity.update(mlm_logits, labels)
 
         # Take predicted token IDs
         # mlm_preds = mlm_logits.argmax(-1)
@@ -92,14 +99,16 @@ class ElectraHead(nn.Module):
             & (replaced_input_ids != self.tokenizer.pad_token_id)
         )
         rtd_logits = torch.masked_select(discriminator_output, bce_mask)
+        rtd_preds = (rtd_logits > 0).long()
         rtd_labels = torch.masked_select(replaced.float(), bce_mask)
         rtd_loss = F.binary_cross_entropy_with_logits(rtd_logits, rtd_labels)
+        self.accuracy.update(rtd_preds, rtd_labels)
 
         return {
             "rtd_loss": rtd_loss,
-            "rtd_acc": (rtd_logits.ge(0) == rtd_labels).float().mean() * 100,
+            "rtd_acc": self.accuracy.compute() * 100,
             "mlm_loss": masked_lm_loss,
-            "perplexity": torch.exp(masked_lm_loss),
+            "perplexity": self.perplexity.compute(),
             "loss": (self.rtd_weight * rtd_loss) + masked_lm_loss,
         }
 
@@ -113,6 +122,8 @@ class ElectraTask(MicroBERTTask):
         mlm_probability: float = 0.15,
         mlm_mask_replace_prob: float = 1.0,
         mlm_random_replace_prob: float = 0.0,
+        temperature: float = 1.0,
+        rtd_weight: float = 50.0,
     ):
         super().__init__()
         self._dataset = dataset
@@ -123,6 +134,8 @@ class ElectraTask(MicroBERTTask):
         self.mlm_probability = mlm_probability
         self.mask_replace_prob = mlm_mask_replace_prob
         self.random_replace_prob = mlm_random_replace_prob
+        self.temperature = temperature
+        self.rtd_weight = rtd_weight
 
     @property
     def slug(self) -> str:
@@ -148,8 +161,13 @@ class ElectraTask(MicroBERTTask):
             self.tokenizer = self.tokenizer.construct()
 
         self._head = ElectraHead(
-            config=model.encoder.config, tokenizer=self.tokenizer, embedding_weights=embedding_weights
+            config=model.encoder.config,
+            tokenizer=self.tokenizer,
+            embedding_weights=embedding_weights,
+            temperature=self.temperature,
+            rtd_weight=self.rtd_weight,
         )
+        logger.info(f"Electra head initialized with {embedding_weights.shape[0]} embeddings")
         return self._head
 
     @property
@@ -190,3 +208,7 @@ class ElectraTask(MicroBERTTask):
             output["input_ids_masked"] = masked
             output["labels"] = labels
         return output
+
+    def reset_metrics(self):
+        self._head.perplexity.reset()
+        self._head.accuracy.reset()
