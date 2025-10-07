@@ -724,11 +724,6 @@ def _train(
                             val_batch_iterator.set_postfix(**metrics_to_log)
                         global_step += 1
 
-                        # Clean up.
-                        del val_batch
-                        del outputs
-                        del metric
-
                     # Log metrics at the end of the validation loop
                     metrics_tsv_path = Path(config.work_dir) / "val_metrics.tsv"
                     extra = ""
@@ -747,6 +742,11 @@ def _train(
                         out_str += f"\t{k}: {v.item():0.4f}\n"
                     out_str += "\n"
                     logger.info(out_str)
+
+                    # Clean up.
+                    del val_batch
+                    del outputs
+                    del metric
 
                 assert val_metric is not None
 
