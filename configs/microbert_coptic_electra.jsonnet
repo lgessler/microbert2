@@ -21,7 +21,7 @@ local test_conllu_path = "data/cop/cop_scriptorium-ud-test.conllu";
 
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
-local hidden_size = 128;
+local hidden_size = 256;
 local num_layers = 4;
 // See https://huggingface.co/docs/transformers/en/model_doc/bert#transformers.BertConfig
 // Note that vocab_size will be overridden, so do not set it based on your tokenizer settings,
@@ -39,8 +39,8 @@ local bert_config = {
 };
 
 // Training -----------------------------------------------------------------------
-local batch_size = 256;
-local grad_accum = 1;
+local batch_size = 128;
+local grad_accum = 2;
 local effective_batch_size = grad_accum * batch_size;
 local num_steps = 1e5;
 local validate_every = 1000;  // in steps
@@ -55,14 +55,14 @@ local optimizer = {
 };
 local lr_scheduler = {
     type: "transformers::cosine",
-    num_warmup_steps: num_steps * 0.1,
+    num_warmup_steps: num_steps * 0.05,
     num_training_steps: num_steps,
 };
 
 // Some set up, don't modify ------------------------------------------------------
 local util = import 'lib/util.libsonnet';
 local model_path = (
-    "./workspace/models/" + language + "_" + experiment_name // + "_" + util.stringifyObject(bert_config)
+    "./workspace/models/" + language + "_" + experiment_name + "_" + util.stringifyObject(bert_config)
 );
 local tokenizer = { pretrained_model_name_or_path: model_path };
 
@@ -134,18 +134,18 @@ local train_dataloader = {
     batch_size: batch_size,
     collate_fn: collate_fn,
     pin_memory: true,
-    num_workers: 2,
-    prefetch_factor: 4,
-    persistent_workers: true,
+    //num_workers: 2,
+    //prefetch_factor: 4,
+    //persistent_workers: true,
 };
 local val_dataloader = {
     shuffle: false,
     batch_size: batch_size,
     collate_fn: collate_fn,
     pin_memory: true,
-    num_workers: 2,
-    prefetch_factor: 4,
-    persistent_workers: true,
+    //num_workers: 2,
+    //prefetch_factor: 4,
+    //persistent_workers: true,
 };
 
 {
@@ -193,7 +193,7 @@ local val_dataloader = {
             train_steps: num_steps,
             grad_accum: grad_accum,
             validate_every: validate_every,
-            checkpoint_every: 100,
+            checkpoint_every: 1000,
             validation_split: "dev",
             validation_dataloader: val_dataloader,
             val_metric_name: "electra_perplexity",
@@ -203,7 +203,8 @@ local val_dataloader = {
                     type: "microbert2.microbert.model.model::write_model",
                     path: model_path,
                     model_attr: "encoder.encoder"
-                }
+                },
+                {type: "microbert2.microbert.model.model::reset_metrics"}
             ],
         },
         //final_metrics: {

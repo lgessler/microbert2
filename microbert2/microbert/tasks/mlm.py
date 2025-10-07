@@ -4,6 +4,7 @@ from typing import Any, Literal
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchmetrics import Perplexity
 from tango.common import Lazy
 from tango.integrations.transformers import Tokenizer
 from torch.nn.utils.rnn import pad_sequence
@@ -31,6 +32,7 @@ class TiedRobertaLMHead(nn.Module):
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.layer_norm = nn.LayerNorm(config.hidden_size, eps=1e-12)
         self.embedding_weights = embedding_weights
+        self.perplexity = Perplexity(ignore_index=-100)
 
     def forward(self, hidden_masked, labels, **kwargs):
         x = self.dense(hidden_masked[-1])
@@ -41,9 +43,11 @@ class TiedRobertaLMHead(nn.Module):
         if not (labels != -100).any():
             masked_lm_loss = torch.tensor(0.0, device=hidden_masked[-1].device)
         else:
-            masked_lm_loss = F.cross_entropy(x.view(-1, self.config.vocab_size), labels.view(-1), ignore_index=-100)
-        perplexity = torch.exp(masked_lm_loss)
-        return {"loss": masked_lm_loss, "perplexity": perplexity}
+            preds = x.view(-1, self.config.vocab_size)
+            target = labels.view(-1)
+            masked_lm_loss = F.cross_entropy(preds, target, ignore_index=-100)
+            self.perplexity.update(x, labels)
+        return {"loss": masked_lm_loss, "perplexity": self.perplexity.compute()}
 
 
 @MicroBERTTask.register("microbert2.microbert.tasks.mlm.MLMTask")
@@ -86,6 +90,7 @@ class MLMTask(MicroBERTTask):
         embedding_weights = model.encoder.embedding_weights
         self.config = model.encoder.config
         self._head = TiedRobertaLMHead(config=self.config, embedding_weights=embedding_weights)
+        logger.info(f"MLM head initialized with {embedding_weights.shape[0]} embeddings")
         return self._head
 
     @property
@@ -124,3 +129,6 @@ class MLMTask(MicroBERTTask):
             output["input_ids_masked"] = masked
             output["labels"] = labels
         return output
+
+    def reset_metrics(self):
+        self._head.perplexity.reset()

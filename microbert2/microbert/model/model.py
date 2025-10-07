@@ -172,3 +172,18 @@ class WriteModelCallback(TrainCallback):
         # Save in the HuggingFace format
         model.save_pretrained(self.path)
         self.logger.info(f"Wrote model to {self.path}")
+
+
+@TrainCallback.register("microbert2.microbert.model.model::reset_metrics")
+class ResetMetricsCallback(TrainCallback):
+    def post_val_loop(self, step: int, epoch: int, val_metric: float, best_val_metric: float) -> None:
+        self.logger.info("Finished validation pass, resetting metric state.")
+        for task in self.model.tasks:
+            task.reset_metrics()
+
+    def pre_val_batch(self, step: int, val_step: int, epoch: int, val_batch: Dict[str, Any]) -> None:
+        if val_step == 0:
+            print()
+            self.logger.info("Beginning validation pass, resetting metric state.")
+            for task in self.model.tasks:
+                task.reset_metrics()

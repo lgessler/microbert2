@@ -143,18 +143,18 @@ local train_dataloader = {
     batch_size: batch_size,
     collate_fn: collate_fn,
     pin_memory: true,
-    num_workers: 2,
-    prefetch_factor: 4,
-    persistent_workers: true,
+    //num_workers: 2,
+    //prefetch_factor: 4,
+    //persistent_workers: true,
 };
 local val_dataloader = {
     shuffle: false,
     batch_size: batch_size,
     collate_fn: collate_fn,
     pin_memory: true,
-    num_workers: 2,
-    prefetch_factor: 4,
-    persistent_workers: true,
+    //num_workers: 2,
+    //prefetch_factor: 4,
+    //persistent_workers: true,
 };
 
 {
@@ -200,7 +200,7 @@ local val_dataloader = {
             train_dataloader: train_dataloader,
             train_epochs: num_epochs,
             grad_accum: grad_accum,
-            checkpoint_every: 100,
+            checkpoint_every: 1000,
             validation_split: "dev",
             validation_dataloader: val_dataloader,
             val_metric_name: "mlm_perplexity",
@@ -210,7 +210,8 @@ local val_dataloader = {
                     type: "microbert2.microbert.model.model::write_model",
                     path: model_path,
                     model_attr: "encoder.encoder"
-                }
+                },
+                {type: "microbert2.microbert.model.model::reset_metrics"}
             ],
         },
         //final_metrics: {

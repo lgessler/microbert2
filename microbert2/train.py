@@ -715,18 +715,11 @@ def _train(
                             dist.all_reduce(val_metric_tensor)
                             val_metric = val_metric_tensor.item() / config.world_size
 
-                        # Update progress bar.
-                        if "progress_items" in outputs:
-                            for k, v in outputs["progress_items"].items():
-                                writer.add_scalar(
-                                    f"Val/{k}", torch.tensor(v, dtype=torch.float), global_step=global_step
-                                )
-                            writer.add_scalar(f"Val/loss", outputs["loss"], global_step=global_step)
                         if config.is_local_main_process and config.should_log_this_val_step(val_step):
                             metrics_to_log = {config.val_metric_name: val_metric}
-                            if "progress_items" in batch_outputs[0]:
+                            if "progress_items" in batch_outputs[-1]:
                                 metrics_to_log.update(
-                                    {k: f"{v:0.2f}" for k, v in batch_outputs[0]["progress_items"].items()}
+                                    {k: f"{v:0.2f}" for k, v in batch_outputs[-1]["progress_items"].items()}
                                 )
                             val_batch_iterator.set_postfix(**metrics_to_log)
                         global_step += 1
@@ -735,6 +728,24 @@ def _train(
                         del val_batch
                         del outputs
                         del metric
+
+                    # Log metrics at the end of the validation loop
+                    metrics_tsv_path = Path(config.work_dir) / "val_metrics.tsv"
+                    extra = ""
+                    if not os.path.exists(metrics_tsv_path):
+                        extra = "\t".join([k for k in batch_outputs[-1]["progress_items"]]) + "\n"
+                    with open(metrics_tsv_path, "a") as f:
+                        line = "\t".join([str(v.item()) for v in batch_outputs[-1]["progress_items"].values()]) + "\n"
+                        f.write(extra + line)
+                    logger.info("Validation metrics written to %s", metrics_tsv_path)
+
+                    # Print to stdout
+                    out_str = f"Metrics for validation after training step {step}:\n\n"
+                    for k, v in batch_outputs[-1]["progress_items"].items():
+                        writer.add_scalar(f"Val/{k}", v.float(), global_step=global_step)
+                        out_str += f"\t{k}: {v.item():0.4f}\n"
+                    out_str += "\n"
+                    logger.info(out_str)
 
                 assert val_metric is not None
 

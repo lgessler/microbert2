@@ -277,7 +277,6 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         self.use_layer_mix = use_layer_mix
         if use_layer_mix:
             self.mix = ScalarMix(num_layers)
-        self._prev_step_training = True
 
         initializer(self)
 
@@ -370,15 +369,6 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
         }
 
         if deprel is not None and head is not None:
-            if self._prev_step_training != self.training:
-                split = "val" if self.training else "train"
-                metrics = self._attachment_scores.get_metric()
-                print()
-                logger.info(f'{split} LAS: {metrics["LAS"] * 100}')
-                logger.info(f'{split} UAS: {metrics["UAS"] * 100}')
-                self._attachment_scores.reset()
-                self._prev_step_training = self.training
-
             evaluation_mask = self._get_mask_for_eval(mask[:, 1:], xpos)
             # We calculate attachment scores for the whole sentence
             # but excluding the symbolic ROOT token at the start,
@@ -391,8 +381,8 @@ class BiaffineDependencyParser(torch.nn.Module, FromParams):
                 evaluation_mask,
             )
             metrics = self._attachment_scores.get_metric()
-            output_dict["las"] = metrics["LAS"] * 100
-            output_dict["uas"] = metrics["UAS"] * 100
+            output_dict["las"] = torch.tensor(metrics["LAS"] * 100)
+            output_dict["uas"] = torch.tensor(metrics["UAS"] * 100)
 
         return output_dict
 
@@ -817,9 +807,11 @@ class UDParseTask(MicroBERTTask, CustomDetHash):
     def construct_head(self, model):
         ignore = [self._rels["punct"]] if "punct" in self._rels else []
         logger.info(f"deprel ignore list: {ignore}")
-        return self._head.construct(
+        self._head = self._head.construct(
             num_pos_tags=len(self._tags), num_head_tags=len(self._rels), metrics_ignore_tags=ignore
         )
+        logger.info(f"UD parser head initialized with {len(self._tags)} tags and {len(self._rels)} relations")
+        return self._head
 
     @property
     def data_keys(self):
@@ -854,4 +846,7 @@ class UDParseTask(MicroBERTTask, CustomDetHash):
 
     @property
     def progress_items(self):
-        return ["las"]
+        return ["las", "uas"]
+
+    def reset_metrics(self):
+        self._head._attachment_scores.reset()
