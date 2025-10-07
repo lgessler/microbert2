@@ -717,9 +717,9 @@ def _train(
 
                         if config.is_local_main_process and config.should_log_this_val_step(val_step):
                             metrics_to_log = {config.val_metric_name: val_metric}
-                            if "progress_items" in batch_outputs[-1]:
+                            if "progress_items" in outputs:
                                 metrics_to_log.update(
-                                    {k: f"{v:0.2f}" for k, v in batch_outputs[-1]["progress_items"].items()}
+                                    {k: f"{v:0.2f}" for k, v in outputs["progress_items"].items()}
                                 )
                             val_batch_iterator.set_postfix(**metrics_to_log)
                         global_step += 1
@@ -733,9 +733,10 @@ def _train(
                     metrics_tsv_path = Path(config.work_dir) / "val_metrics.tsv"
                     extra = ""
                     if not os.path.exists(metrics_tsv_path):
-                        extra = "\t".join([k for k in batch_outputs[-1]["progress_items"]]) + "\n"
+                        extra = "\t".join(["step"] + [k for k in outputs["progress_items"].keys()]) + "\n"
                     with open(metrics_tsv_path, "a") as f:
-                        line = "\t".join([str(v.item()) for v in batch_outputs[-1]["progress_items"].values()]) + "\n"
+                        values = [str(v.item()) for v in outputs["progress_items"].values()]
+                        line = "\t".join([str(step)] + values) + "\n"
                         f.write(extra + line)
                     logger.info("Validation metrics written to %s", metrics_tsv_path)
 
