@@ -42,7 +42,7 @@ class TiedElectraGeneratorPredictions(nn.Module):
 class ElectraHead(nn.Module):
     """Head for the ELECTRA task"""
 
-    def __init__(self, config, tokenizer, embedding_weights, temperature=1.0, rtd_weight=50):
+    def __init__(self, config, tokenizer, embedding_weights, temperature, rtd_weight):
         super().__init__()
         self.tokenizer = tokenizer
         self.generator_head = TiedElectraGeneratorPredictions(config, embedding_weights)
@@ -122,6 +122,8 @@ class ElectraTask(MicroBERTTask):
         mlm_probability: float = 0.15,
         mlm_mask_replace_prob: float = 1.0,
         mlm_random_replace_prob: float = 0.0,
+        temperature: float = 1.0,
+        rtd_weight: float = 50.0,
     ):
         super().__init__()
         self._dataset = dataset
@@ -132,6 +134,8 @@ class ElectraTask(MicroBERTTask):
         self.mlm_probability = mlm_probability
         self.mask_replace_prob = mlm_mask_replace_prob
         self.random_replace_prob = mlm_random_replace_prob
+        self.temperature = temperature
+        self.rtd_weight = rtd_weight
 
     @property
     def slug(self) -> str:
@@ -157,7 +161,11 @@ class ElectraTask(MicroBERTTask):
             self.tokenizer = self.tokenizer.construct()
 
         self._head = ElectraHead(
-            config=model.encoder.config, tokenizer=self.tokenizer, embedding_weights=embedding_weights
+            config=model.encoder.config,
+            tokenizer=self.tokenizer,
+            embedding_weights=embedding_weights,
+            temperature=self.temperature,
+            rtd_weight=self.rtd_weight,
         )
         logger.info(f"Electra head initialized with {embedding_weights.shape[0]} embeddings")
         return self._head
