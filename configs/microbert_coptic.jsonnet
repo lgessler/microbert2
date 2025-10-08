@@ -213,7 +213,7 @@ local val_dataloader = {
         // Begin training
         trained_model: {
             type: "microbert2.train::train",
-            run_name: "coptic_mlm_mt_all_unfrozen_top_4",
+            run_name: "coptic_mlm_mt_all_frozen_pretty",
             model: model,
             dataset_dict: { type: "ref", ref: "model_inputs" },
             training_engine: training_engine,
