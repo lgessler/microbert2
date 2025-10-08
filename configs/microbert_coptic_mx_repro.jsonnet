@@ -204,6 +204,7 @@ local val_dataloader = {
             validation_split: "dev",
             validation_dataloader: val_dataloader,
             val_metric_name: "mlm_perplexity",
+            auto_aggregate_val_metric: false,
             // minimize_val_metric: true,
             callbacks: [
                 {

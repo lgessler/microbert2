@@ -71,6 +71,7 @@ local electra_task = {
     type: "microbert2.microbert.tasks.electra.ElectraTask",
     dataset: { type: "ref", ref: "raw_text_data" },
     tokenizer: tokenizer,
+    rtd_weight: 25,
 };
 local mlm_task = {
     type: "microbert2.microbert.tasks.mlm.MLMTask",
@@ -197,6 +198,7 @@ local val_dataloader = {
             validation_split: "dev",
             validation_dataloader: val_dataloader,
             val_metric_name: "electra_perplexity",
+            auto_aggregate_val_metric: false,
             // minimize_val_metric: true,
             callbacks: [
                 {

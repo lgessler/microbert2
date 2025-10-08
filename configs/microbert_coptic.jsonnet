@@ -27,11 +27,14 @@ local whitespace_tokenized_text_path_dev = "data/cop/dev.txt";
 local train_conllu_path = "data/cop/cop_scriptorium-ud-train.conllu";
 local dev_conllu_path = "data/cop/cop_scriptorium-ud-dev.conllu";
 local test_conllu_path = "data/cop/cop_scriptorium-ud-test.conllu";
+local train_mt_path = "data/cop/train.tsv";
+local dev_mt_path = "data/cop/dev.tsv";
+local test_mt_path = "data/cop/test.tsv";
 
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
 local hidden_size = 128;
-local num_layers = 4;
+local num_layers = 6;
 // Type of encoder stack. See microbert2/microbert/model/encoder.py for implementations.
 local bert_type = "bert";
 // local bert_type = "modernbert";
@@ -44,7 +47,7 @@ local bert_type = "bert";
 local bert_config = {
     hidden_size: hidden_size,
     num_hidden_layers: num_layers,
-    num_attention_heads: 4,
+    num_attention_heads: 8,
     intermediate_size: hidden_size + hidden_size / 2,
     max_position_embeddings: max_length,
     attention_dropout: 0.1,
@@ -54,15 +57,15 @@ local bert_config = {
 };
 
 // Training and Optimization ------------------------------------------------------
-local batch_size = 64;
-local grad_accum = 4;
+local batch_size = 128;
+local grad_accum = 2;
 local effective_batch_size = grad_accum * batch_size;
-local num_steps = 1e5;
+local num_steps = 150000;
 local validate_every = 1000;  // in steps
 
 local optimizer = {
     type: "torch::AdamW",
-    lr: 1e-4,
+    lr: 5e-5,
     betas: [0.9, 0.98],
     eps: 1e-6,
     weight_decay: 0.01
@@ -102,6 +105,7 @@ local pos_task = {
     train_conllu_path: train_conllu_path,
     dev_conllu_path: dev_conllu_path,
     test_conllu_path: test_conllu_path,
+    proportion: 0.2,
 };
 local parser = (import "lib/parser.libsonnet")(hidden_size, num_layers);
 local parse_task = {
@@ -111,7 +115,21 @@ local parse_task = {
     dev_conllu_path: dev_conllu_path,
     test_conllu_path: test_conllu_path,
 };
-local tasks = [mlm_task, pos_task];
+local mt_task = {
+    type: "microbert2.microbert.tasks.mt_task.MTTask",
+    head: {
+        num_layers: num_layers,
+        embedding_dim: hidden_size,
+        use_layer_mix: false,
+        freeze_decoder: true,
+        train_last_k_decoder_layers: 0
+    },
+    train_mt_path : train_mt_path,
+    dev_mt_path : dev_mt_path,
+    test_mt_path : test_mt_path,
+    proportion: 0.2,
+};
+local tasks = [mlm_task, pos_task, mt_task];
 
 
 // --------------------------------------------------------------------------------
@@ -210,6 +228,7 @@ local val_dataloader = {
             validation_split: "dev",
             validation_dataloader: val_dataloader,
             val_metric_name: "mlm_perplexity",
+            auto_aggregate_val_metric: false,
             // minimize_val_metric: true,
             callbacks: [
                 {
