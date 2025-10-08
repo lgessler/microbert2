@@ -4,7 +4,7 @@
 local language = "coptic";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "mx_modern_coptic_mlm_mt_all_unfrozen";
+local experiment_name = "mx_modern_coptic_mlm_mt_all_frozen_pretty";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -60,8 +60,8 @@ local bert_config = {
 };
 
 // Training and Optimization ------------------------------------------------------
-local batch_size = 64;
-local grad_accum = 4;
+local batch_size = 256;
+local grad_accum = 1;
 local effective_batch_size = grad_accum * batch_size;
 local num_steps = 1e5;
 local validate_every = 1000;  // in steps
@@ -98,7 +98,7 @@ local mt_task = {
         embedding_dim: hidden_size,
         use_layer_mix: false,
         freeze_decoder: true,
-        train_last_k_decoder_layers: 4 
+        train_last_k_decoder_layers: 0 
     },
     train_mt_path : train_coptic,
     test_mt_path : test_coptic,
