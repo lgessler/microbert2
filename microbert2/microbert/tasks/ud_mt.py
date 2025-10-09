@@ -106,7 +106,7 @@ def read_parallel_tsv(path: str, delimiter: str = "\t"):
                 rows.append({
                     "tokens": src.split(),
                     "tgt_input_ids": tgt,
-                    "tgt_attention_mask": None,  # will be computed in tensorify_data
+                    "tgt_attention_mask": tgt,   
                 })
     return rows
 
