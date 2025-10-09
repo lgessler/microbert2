@@ -64,7 +64,7 @@ local batch_size = 128;
 local grad_accum = 2;
 local effective_batch_size = grad_accum * batch_size;
 local num_steps = 150000;
-local validate_every = 1000;  // in steps
+local validate_every = 5000;  // in steps
 
 local optimizer = {
     type: "torch::AdamW",
@@ -224,7 +224,7 @@ local val_dataloader = {
             train_steps: num_steps,
             grad_accum: grad_accum,
             validate_every: validate_every,
-            checkpoint_every: 1000,
+            checkpoint_every: 5000,
             validation_split: "dev",
             validation_dataloader: val_dataloader,
             val_metric_name: "mlm_perplexity",
