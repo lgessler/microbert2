@@ -1,4 +1,5 @@
 import os
+from posixpath import split
 import pprint
 import random
 import shutil
@@ -95,9 +96,12 @@ class SubwordTokenize(Step):
         wp_count = 0
         sentence_count = 0
         token_count = 0
+        if not split:
+            self.logger.info(f"Split {split_name} for task '{task_slug}' is empty — skipping sample preview.")
+            return []
 
         sample = pprint.pformat(random.choice(split), indent=4, width=120, compact=True)
-        self.logger.info(f"Sample inst from {task_slug}_{split_name}:\n\n\t{sample}\n")
+        self.logger.info(f"Sample inst from {task_slug}_{split_name}:\n\n{sample}")
 
         def inner():
             nonlocal wp_count, sentence_count, token_count
@@ -146,6 +150,7 @@ class SubwordTokenize(Step):
             task_dataset = {
                 k: self._process_split(v, k, task.slug, tokenizer, max_length, discard_truncated=True)
                 for k, v in task.dataset.items()
+                if v
             }
             datasets.append(task_dataset)
         return datasets
