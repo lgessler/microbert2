@@ -131,21 +131,7 @@ local parse_task = {
     dev_conllu_path: dev_conllu_path,
     test_conllu_path: test_conllu_path,
 };
-local mt_task = {
-    type: "microbert2.microbert.tasks.mt_task.MTTask",
-    head: {
-        num_layers: num_layers,
-        embedding_dim: hidden_size,
-        use_layer_mix: false,
-        freeze_decoder: true,
-        train_last_k_decoder_layers: 0
-    },
-    train_mt_path : train_mt_path,
-    dev_mt_path : dev_mt_path,
-    test_mt_path : test_mt_path,
-    proportion: 0.2,
-};
-local tasks = [mlm_task, pos_task, mt_task];
+local tasks = [mlm_task, mt_task];
 
 
 // --------------------------------------------------------------------------------
@@ -181,9 +167,9 @@ local train_dataloader = {
     batch_size: batch_size,
     collate_fn: collate_fn,
     pin_memory: true,
-    num_workers: 2,
-    prefetch_factor: 4,
-    persistent_workers: true,
+    //num_workers: 2,
+    //prefetch_factor: 4,
+    //persistent_workers: true,
 };
 local val_dataloader = {
     shuffle: false,

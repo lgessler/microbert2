@@ -116,7 +116,7 @@ def read_parallel_tsv(path: str, delimiter: str = "\t"):
     return rows
 
 @MicroBERTTask.register("microbert2.microbert.tasks.ud_pos.UDMTTask")
-class MTTask(MicroBERTTask, CustomDetHash):
+class MTTask(MicroBERTTask, CustomDetHash): # top-level task
 
     def __init__(
             self,
