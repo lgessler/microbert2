@@ -216,7 +216,7 @@ local val_dataloader = {
         trained_model: {
             type: "microbert2.train::train",
             model: model,
-            run_name: experiment_name
+            run_name: experiment_name,
             dataset_dict: { type: "ref", ref: "model_inputs" },
             training_engine: training_engine,
             log_every: 1,
