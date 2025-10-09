@@ -166,7 +166,7 @@ class MTTask(MicroBERTTask, CustomDetHash): # top-level task
 
     def _encode_tgt(self, text: str):
         enc = self._tok(
-            text,
+            text_target=text,
             max_length=self._max_tgt_len,
             truncation=True,
             add_special_tokens=True,
