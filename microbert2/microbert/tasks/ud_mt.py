@@ -120,7 +120,7 @@ def read_parallel_tsv(path: str, delimiter: str = "\t"):
                 })
     return rows
 
-@MicroBERTTask.register("microbert2.microbert.tasks.ud_pos.UDMTTask")
+@MicroBERTTask.register("microbert2.microbert.tasks.mt_task.MTTask")
 class MTTask(MicroBERTTask, CustomDetHash):
 
     def __init__(
