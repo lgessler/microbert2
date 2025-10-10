@@ -25,23 +25,26 @@ class MTHead(torch.nn.Module, FromParams):
             num_layers: int,
             use_layer_mix: bool = True,
             freeze_decoder: bool = True,
-            train_last_k_decoder_layers: int = 0
+            train_last_k_decoder_layers: int = 0,
+            embedding_dim: Optional[int] = None,
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
         self.mix = ScalarMix(num_layers) if use_layer_mix else None
         self.proj = None  # set later when we see mbart d_model
         self.perplexity = Perplexity(ignore_index=-100)
+        self._encoder_dim_hint = embedding_dim
 
         # These will be attached by the task:
         self.mbart = None
         self._freeze_decoder = freeze_decoder
         self._train_last_k = train_last_k_decoder_layers
 
-    def attach_mbart(self, mbart, encoder_dim: int):
+    def attach_mbart(self, mbart, encoder_dim: Optional[int] = None):
         """Attach an already-constructed mBART model and set freezing/unfreezing."""
         self.mbart = mbart
         d_model = self.mbart.config.d_model
+        encoder_dim = encoder_dim if encoder_dim is not None else self._encoder_dim_hint
         if encoder_dim != d_model:
             self.proj = torch.nn.Linear(encoder_dim, d_model)
         # freezings
@@ -89,7 +92,7 @@ class MTHead(torch.nn.Module, FromParams):
             use_cache=False,
         )
         loss = out.loss
-        self.perplexity.update(out.logits, labels)
+        self.perplexity.update(F.log_softmax(out.logits, dim=-1), labels)
         return {"loss": loss, "perplexity": self.perplexity.compute()}
 
 
