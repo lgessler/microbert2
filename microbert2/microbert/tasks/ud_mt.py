@@ -158,8 +158,7 @@ class MTTask(MicroBERTTask, CustomDetHash): # top-level task
 
         head = self._head.construct()
 
-        encoder_dim = self.embedding_dim
-        head.attach_mbart(mbart, encoder_dim)
+        head.attach_mbart(mbart)
         logger.info(f"MT head initialized with mBART '{self._mbart_model_name}' (src={self._tok.src_lang}, tgt={self._tok.tgt_lang})")
         return head
 
