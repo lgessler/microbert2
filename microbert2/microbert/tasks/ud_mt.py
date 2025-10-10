@@ -23,41 +23,43 @@ class MTHead(torch.nn.Module, FromParams):
     def __init__(
             self,
             num_layers: int,
+            embedding_dim: int,
+            mbert_model_name: str = "facebook/mbart-large-50-many-to-many-mmt",
             use_layer_mix: bool = True,
             freeze_decoder: bool = True,
-            train_last_k_decoder_layers: int = 0,
-            embedding_dim: Optional[int] = None,
+            train_last_k_decoder_layers: int = 0
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
-        self.mix = ScalarMix(num_layers) if use_layer_mix else None
-        self.proj = None  # set later when we see mbart d_model
-        self.perplexity = Perplexity(ignore_index=-100)
-        self._encoder_dim_hint = embedding_dim
+        self.perplexity = Perplexity(ignore_index=-100)  
+        if self.use_layer_mix:
+            self.mix = ScalarMix(num_layers) 
 
-        # These will be attached by the task:
-        self.mbart = None
-        self._freeze_decoder = freeze_decoder
-        self._train_last_k = train_last_k_decoder_layers
+        self.mbart = AutoModelForSeq2SeqLM.from_pretrained(mbert_model_name)
+        d_model = self.mbart.config.d_model  
+        if embedding_dim != d_model:
+            self.proj = torch.nn.Linear(embedding_dim, d_model)
+            logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
 
-    def attach_mbart(self, mbart, encoder_dim: Optional[int] = None):
-        """Attach an already-constructed mBART model and set freezing/unfreezing."""
-        self.mbart = mbart
-        d_model = self.mbart.config.d_model
-        encoder_dim = encoder_dim if encoder_dim is not None else self._encoder_dim_hint
-        if encoder_dim != d_model:
-            self.proj = torch.nn.Linear(encoder_dim, d_model)
-        # freezings
-        if self._freeze_decoder and self._train_last_k <= 0:
+        if freeze_decoder and train_last_k_decoder_layers == 0:
             for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = False
-        elif self._train_last_k > 0:
+            logger.info("Decoder frozen")
+        elif train_last_k_decoder_layers > 0:
+            # freeze all first
             for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = False
+            # unfreeze top-K layers
             layers = self.mbart.model.decoder.layers
-            for layer in layers[-min(self._train_last_k, len(layers)):]:
+            K = min(train_last_k_decoder_layers, len(layers))
+            for layer in layers[-K:]:
                 for p in layer.parameters():
                     p.requires_grad = True
+            logger.info(f"Decoder top {K} layer(s) unfrozen")
+        else:
+            for p in self.mbart.model.decoder.parameters():
+                p.requires_grad = True
+            logger.info("Decoder fully trainable")
 
 
 
@@ -109,12 +111,12 @@ def read_parallel_tsv(path: str, delimiter: str = "\t"):
                 rows.append({
                     "tokens": src.split(),
                     "tgt_input_ids": tgt,
-                    "tgt_attention_mask": tgt,   
+                    "tgt_attention_mask": tgt,
                 })
     return rows
 
-@MicroBERTTask.register("microbert2.microbert.tasks.mt_task.MTTask")
-class MTTask(MicroBERTTask, CustomDetHash): # top-level task
+@MicroBERTTask.register("microbert2.microbert.tasks.ud_pos.UDMTTask")
+class MTTask(MicroBERTTask, CustomDetHash):
 
     def __init__(
             self,
@@ -124,9 +126,7 @@ class MTTask(MicroBERTTask, CustomDetHash): # top-level task
             test_mt_path: Optional[str] = None,
             delimiter: str = "\t",
             proportion: float = 0.1, #0.2 0.5 coptic
-            mbart_model_name: str = "facebook/mbart-large-50-many-to-many-mmt",
-            mbart_tokenizer_name: Optional[str] = None,  # if None, use model_name
-            src_lang_code: str = "ar_AR",
+            mbart_tokenizer_name: str = "facebook/mbart-large-50-many-to-one-mmt",
             tgt_lang_code: str = "en_XX",
             max_tgt_len: int = 128,
     ):
@@ -136,31 +136,24 @@ class MTTask(MicroBERTTask, CustomDetHash): # top-level task
             "dev":   read_parallel_tsv(dev_mt_path, delimiter),
             "test":  read_parallel_tsv(test_mt_path, delimiter) if test_mt_path else [],
         }
-        self._mbart_model_name = mbart_model_name
-        self._mbart_tokenizer_name = mbart_tokenizer_name or mbart_model_name
-        self._src_lang_code = src_lang_code
-        self._tgt_lang_code = tgt_lang_code
-        self._max_tgt_len = max_tgt_len
         self._proportion = proportion
-        # MBART
-        self._tok = AutoTokenizer.from_pretrained(self._mbart_tokenizer_name, use_fast=False)
-        self._tok.src_lang = self._src_lang_code
-        self._tok.tgt_lang = self._tgt_lang_code
+        self._mbart_tokenizer_name = mbart_tokenizer_name
+        self._tgt_lang_code = tgt_lang_code
+
+        # MBART 
+        self._tok = AutoTokenizer.from_pretrained(mbart_tokenizer_name,use_fast=False)
+        #self._tok.add_special_tokens({"additional_special_tokens": ["<cop_XX>"]})
+        self._tok.src_lang = "ar_AR"  
+        self._tok.tgt_lang = tgt_lang_code
         self._pad = self._tok.pad_token_id
+        self._max_tgt_len = max_tgt_len
 
     @property
     def slug(self):
         return "mt"
     
     def construct_head(self, model):
-        # Build / load mBART here
-        mbart = AutoModelForSeq2SeqLM.from_pretrained(self._mbart_model_name)
-
-        head = self._head.construct()
-
-        head.attach_mbart(mbart)
-        logger.info(f"MT head initialized with mBART '{self._mbart_model_name}' (src={self._tok.src_lang}, tgt={self._tok.tgt_lang})")
-        return head
+        return self._head.construct()
 
     @property
     def dataset(self):
@@ -168,7 +161,7 @@ class MTTask(MicroBERTTask, CustomDetHash): # top-level task
 
     def _encode_tgt(self, text: str):
         enc = self._tok(
-            text_target=text,
+            text,
             max_length=self._max_tgt_len,
             truncation=True,
             add_special_tokens=True,
