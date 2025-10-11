@@ -126,7 +126,7 @@ local mt_task = {
     },
     train_mt_path : train_mt_path,
     dev_mt_path : dev_mt_path,
-    test_mt_path : test_mt_path,
+    test_mt_path : dev_mt_path,
     proportion: 0.2,
 };
 local tasks = [mlm_task, mt_task];
