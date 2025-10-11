@@ -61,12 +61,7 @@ class MLMTask(MicroBERTTask):
         mlm_random_replace_prob: float = 0.0,
     ):
         super().__init__()
-        ds = dataset or {}
-        self._dataset = {
-            "train": ds.get("train", []),
-            "dev":   ds.get("dev", []),
-            "test":  ds.get("test", []),   # handles empty or missing test set
-        }
+        self._dataset = dataset
         self.config = None
         self._head = None
         self.collator = None
