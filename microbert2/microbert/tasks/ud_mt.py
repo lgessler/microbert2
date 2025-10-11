@@ -13,6 +13,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torchmetrics import Accuracy
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from transformers.modeling_outputs import BaseModelOutput
+from torchmetrics import Perplexity
 
 from microbert2.common import pool_embeddings
 from microbert2.microbert.tasks.task import MicroBERTTask
@@ -32,6 +33,7 @@ class MTHead(torch.nn.Module, FromParams):
         super().__init__()
         self.use_layer_mix = use_layer_mix
         self.proj = None
+        self.perplexity = Perplexity(ignore_index=-100)
         if self.use_layer_mix:
             self.mix = ScalarMix(num_layers) 
 
@@ -98,9 +100,9 @@ class MTHead(torch.nn.Module, FromParams):
             use_cache=False,
         )
         loss = out.loss
-        ppl = torch.exp(loss.detach())
-
-        return {"loss": loss, "perplexity": ppl}
+        log_probs = F.log_softmax(out.logits, dim=-1)
+        self.perplexity.update(log_probs, labels)
+        return {"loss": loss, "perplexity": self.perplexity.compute()}
     
 
 def read_parallel_tsv(path: str, delimiter: str = "\t"):
@@ -211,3 +213,6 @@ class MTTask(MicroBERTTask, CustomDetHash):
     @property
     def data_keys(self):
         return ["tgt_input_ids", "tgt_attention_mask"]
+    
+    def reset_metrics(self):
+        self._head.ppl.reset()
