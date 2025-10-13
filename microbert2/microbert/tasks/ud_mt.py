@@ -160,8 +160,8 @@ class MTTask(MicroBERTTask, CustomDetHash):
         return "mt"
     
     def construct_head(self, model):
-        return self._head.construct()
-
+        self._head = self._head.construct()
+        return self._head
     @property
     def dataset(self):
         return self._dataset
@@ -215,4 +215,4 @@ class MTTask(MicroBERTTask, CustomDetHash):
         return ["tgt_input_ids", "tgt_attention_mask"]
     
     def reset_metrics(self):
-        self._head.ppl.reset()
+        self._head.perplexity.reset()
