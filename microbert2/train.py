@@ -238,7 +238,7 @@ class Train(Step):
         auto_aggregate_val_metric: bool = True,
         callbacks: Optional[List[Lazy[TrainCallback]]] = None,
         remove_stale_checkpoints: bool = True,
-        run_name: Optional[str] = None
+        run_name: Optional[str] = None,
     ) -> Model:
 
         is_distributed = False
@@ -345,7 +345,7 @@ def _train(
     validation_dataloader: Optional[Lazy[DataLoader]] = None,
     callbacks: Optional[List[Lazy[TrainCallback]]] = None,
     include_package: Optional[Set[str]] = None,
-    run_name: Optional[str] = None
+    run_name: Optional[str] = None,
 ) -> Optional[Model]:
     # Set random seeds.
     set_seed_all(config.seed)
@@ -727,9 +727,7 @@ def _train(
                         if config.is_local_main_process and config.should_log_this_val_step(val_step):
                             metrics_to_log = {config.val_metric_name: val_metric}
                             if "progress_items" in outputs:
-                                metrics_to_log.update(
-                                    {k: f"{v:0.2f}" for k, v in outputs["progress_items"].items()}
-                                )
+                                metrics_to_log.update({k: f"{v:0.2f}" for k, v in outputs["progress_items"].items()})
                             val_batch_iterator.set_postfix(**metrics_to_log)
                         global_step += 1
 
