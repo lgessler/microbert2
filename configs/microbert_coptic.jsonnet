@@ -77,6 +77,10 @@ local lr_scheduler = {
     num_training_steps: num_steps,
 };
 
+// When True, attempt to scale loss contribution from each task using learnable parameters
+// See https://arxiv.org/abs/1705.07115
+local loss_auto_scaling = false;
+
 // Some set up, don't modify ------------------------------------------------------
 local util = import 'lib/util.libsonnet';
 local model_path = (
@@ -131,6 +135,7 @@ local mt_task = {
     tgt_lang_code: "en_XX",
     src_lang_code: "ar_AR",
     proportion: 0.2,
+    max_sequence_length: 128
 };
 local tasks = [mlm_task, mt_task];
 
@@ -142,6 +147,7 @@ local model = {
     type: "microbert2.microbert.model.model::microbert_model",
     tokenizer: tokenizer,
     model_output_path: model_path,
+    loss_auto_scaling: loss_auto_scaling,
     tasks: tasks,
     encoder: {
         type: bert_type,
