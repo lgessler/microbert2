@@ -21,55 +21,55 @@ from microbert2.microbert.tasks.task import MicroBERTTask
 logger = getLogger(__name__)
 
 
-class MTHead(torch.nn.Module, FromParams):
+class MBARTMTHead(torch.nn.Module, FromParams):
     def __init__(
         self,
         num_encoder_layers: int,
         embedding_dim: int,
-        decoder_model_name: str = "facebook/mbart-large-50",
+        mbart_model_name: str,
         use_layer_mix: bool = False,
         freeze_decoder: bool = True,
         train_last_k_decoder_layers: int = 0,
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
-        self.proj = None
-        self.decoder = AutoModelForSeq2SeqLM.from_pretrained(decoder_model_name)
-        self.pad_token_id = self.decoder.config.pad_token_id
+
+        # Load MBART and delete the encode to save vram--we don't need it
+        self.mbart = AutoModelForSeq2SeqLM.from_pretrained(mbart_model_name)
+        del self.mbart.model.encoder
+
+        d_model = self.mbart.config.d_model
+        self.pad_token_id = self.mbart.config.pad_token_id
         self.perplexity = Perplexity(ignore_index=self.pad_token_id)
+
+        # Layer mixing and linear projection after decoder
         if self.use_layer_mix:
             self.mix = ScalarMix(num_encoder_layers)
-
-        d_model = self.decoder.config.d_model
+        self.proj = None
         if embedding_dim != d_model:
             self.proj = torch.nn.Linear(embedding_dim, d_model)
             logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
 
+        # Decoder layer freezing
         if freeze_decoder and train_last_k_decoder_layers == 0:
-            for p in self.decoder.model.decoder.parameters():
+            for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = False
             logger.info("Decoder frozen")
         elif train_last_k_decoder_layers > 0:
             # freeze all first
-            for p in self.decoder.model.decoder.parameters():
+            for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = False
             # unfreeze top-K layers
-            layers = self.decoder.model.decoder.layers
+            layers = self.mbart.model.decoder.layers
             K = min(train_last_k_decoder_layers, len(layers))
             for layer in layers[-K:]:
                 for p in layer.parameters():
                     p.requires_grad = True
             logger.info(f"Decoder top {K} layer(s) unfrozen")
         else:
-            for p in self.decoder.model.decoder.parameters():
+            for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = True
             logger.info("Decoder fully trainable")
-
-    def _mix_layers(self, hidden_masked: List[torch.Tensor]) -> torch.Tensor:
-        if self.use_layer_mix:
-            return self.mix(hidden_masked)
-        else:
-            return hidden_masked[-1]
 
     def forward(
         self,
@@ -79,22 +79,19 @@ class MTHead(torch.nn.Module, FromParams):
         encoder_attention_mask: Optional[torch.LongTensor] = None,
         **kwargs,
     ) -> Dict[str, torch.Tensor]:
-        if self.use_layer_mix:
-            enc = self._mix_layers(hidden_masked)
-        else:
-            enc = hidden_masked[-1]
-
+        encoder_states = self.mix(hidden_masked) if self.use_layer_mix else hidden_masked[-1]
         if self.proj is not None:
-            enc = self.proj(enc)
+            encoder_states = self.proj(encoder_states)
 
-        enc_out = BaseModelOutput(last_hidden_state=enc)
-        # Mask pad tokens in labels so loss ignores them
+        # Set label at padded positions to -100 so they are ignored in the loss
+        # See https://github.com/huggingface/transformers/blob/8ac2b916b042b1f78b75c9eb941c0f5d2cdd8e10/src/transformers/models/mbart/modeling_mbart.py#L1386-L1389
         labels = tgt_input_ids.clone()
-        pad_id = self.decoder.config.pad_token_id
+        pad_id = self.mbart.config.pad_token_id
         if pad_id is not None:
-            labels[labels == pad_id] = pad_id
-        out = self.decoder(
-            encoder_outputs=enc_out,
+            labels[labels == pad_id] = -100
+
+        out = self.mbart(
+            encoder_outputs=BaseModelOutput(last_hidden_state=encoder_states),
             attention_mask=encoder_attention_mask,
             decoder_attention_mask=tgt_attention_mask,
             labels=labels,
@@ -125,21 +122,21 @@ def read_parallel_tsv(path: str, delimiter: str = "\t"):
     return rows
 
 
-@MicroBERTTask.register("microbert2.microbert.tasks.mt_task.MTTask")
-class MTTask(MicroBERTTask, CustomDetHash):
+@MicroBERTTask.register("microbert2.microbert.tasks.mbart_mt.MBARTMTTask")
+class MBARTMTTask(MicroBERTTask, CustomDetHash):
 
     def __init__(
         self,
-        head: Lazy[MTHead],
+        head: Lazy[MBARTMTHead],
         train_mt_path: str,
         dev_mt_path: str,
         test_mt_path: Optional[str] = None,
         delimiter: str = "\t",
         proportion: float = 0.1,
-        decoder_tokenizer_name: str = "facebook/mbart-large-50",
+        mbart_model_name: str = "facebook/mbart-large-50-many-to-one-mmt",
         tgt_lang_code: str = "en_XX",
         src_lang_code: str = "ar_AR",
-        max_tgt_len: int = 512,
+        max_sequence_length: int = 512,
     ):
         self._head = head
         self._dataset = {
@@ -148,21 +145,21 @@ class MTTask(MicroBERTTask, CustomDetHash):
             "test": read_parallel_tsv(test_mt_path, delimiter) if test_mt_path else [],
         }
         self._proportion = proportion
-        self._decoder_tokenizer_name = decoder_tokenizer_name
+        self._mbart_model_name = mbart_model_name
         self._tgt_lang_code = tgt_lang_code
 
-        self._tok = AutoTokenizer.from_pretrained(decoder_tokenizer_name, use_fast=False)
-        self._tok.src_lang = src_lang_code
-        self._tok.tgt_lang = tgt_lang_code
-        self._pad = self._tok.pad_token_id
-        self._max_tgt_len = max_tgt_len
+        self._tokenizer = AutoTokenizer.from_pretrained(mbart_model_name, use_fast=False)
+        self._tokenizer.src_lang = src_lang_code
+        self._tokenizer.tgt_lang = tgt_lang_code
+        self._pad_token_id = self._tokenizer.pad_token_id
+        self._max_sequence_length = max_sequence_length
 
     @property
     def slug(self):
         return "mt"
 
     def construct_head(self, model):
-        self._head = self._head.construct()
+        self._head = self._head.construct(mbart_model_name=self._mbart_model_name)
         return self._head
 
     @property
@@ -170,9 +167,9 @@ class MTTask(MicroBERTTask, CustomDetHash):
         return self._dataset
 
     def _encode_tgt(self, text: str):
-        enc = self._tok(
+        enc = self._tokenizer(
             text,
-            max_length=self._max_tgt_len,
+            max_length=self._max_sequence_length,
             truncation=True,
             add_special_tokens=True,
         )
@@ -193,7 +190,7 @@ class MTTask(MicroBERTTask, CustomDetHash):
 
     def null_tensor(self, key):
         if key == "tgt_input_ids":
-            return torch.tensor([self._pad], dtype=torch.long)
+            return torch.tensor([self._pad_token_id], dtype=torch.long)
         elif key == "tgt_attention_mask":
             return torch.tensor([0], dtype=torch.long)
         else:
@@ -201,7 +198,7 @@ class MTTask(MicroBERTTask, CustomDetHash):
 
     def collate_data(self, key: str, values: List[torch.Tensor]):
         if key == "tgt_input_ids":
-            return pad_sequence(values, batch_first=True, padding_value=self._pad)
+            return pad_sequence(values, batch_first=True, padding_value=self._pad_token_id)
         elif key == "tgt_attention_mask":
             return pad_sequence(values, batch_first=True, padding_value=0)
         else:

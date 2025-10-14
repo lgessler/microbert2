@@ -4,7 +4,7 @@
 local language = "coptic";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "mx_modern_2";
+local experiment_name = "coptic_mlm_mt";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -58,10 +58,10 @@ local bert_config = {
 
 // Training and Optimization ------------------------------------------------------
 local batch_size = 128;
-local grad_accum = 2;
+local grad_accum = 1;
 local effective_batch_size = grad_accum * batch_size;
 local num_steps = 150000;
-local validate_every = 1000;  // in steps
+local validate_every = 5000;  // in steps
 
 local optimizer = {
     type: "torch::AdamW",
@@ -116,20 +116,23 @@ local parse_task = {
     test_conllu_path: test_conllu_path,
 };
 local mt_task = {
-    type: "microbert2.microbert.tasks.mt_task.MTTask",
+    type: "microbert2.microbert.tasks.mbart_mt.MBARTMTTask",
+    train_mt_path: train_mt_path,
+    dev_mt_path: dev_mt_path,
+    test_mt_path: test_mt_path,
+    mbart_model_name: "facebook/mbart-large-50-many-to-one-mmt",
     head: {
-        num_encoder_layers: num_layers,
         embedding_dim: hidden_size,
+        num_encoder_layers: num_layers,
         use_layer_mix: false,
         freeze_decoder: true,
         train_last_k_decoder_layers: 0
     },
-    train_mt_path : train_mt_path,
-    dev_mt_path : dev_mt_path,
-    test_mt_path : test_mt_path,
+    tgt_lang_code: "en_XX",
+    src_lang_code: "ar_AR",
     proportion: 0.2,
 };
-local tasks = [mlm_task, pos_task, mt_task];
+local tasks = [mlm_task, mt_task];
 
 
 // --------------------------------------------------------------------------------
@@ -224,7 +227,7 @@ local val_dataloader = {
             train_steps: num_steps,
             grad_accum: grad_accum,
             validate_every: validate_every,
-            checkpoint_every: 1000,
+            checkpoint_every: 5000,
             validation_split: "dev",
             validation_dataloader: val_dataloader,
             val_metric_name: "mlm_perplexity",
