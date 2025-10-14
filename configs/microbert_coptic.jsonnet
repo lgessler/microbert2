@@ -4,7 +4,7 @@
 local language = "coptic";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "mx_modern";
+local experiment_name = "mx_modern_2";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -118,7 +118,7 @@ local parse_task = {
 local mt_task = {
     type: "microbert2.microbert.tasks.mt_task.MTTask",
     head: {
-        num_layers: num_layers,
+        num_encoder_layers: num_layers,
         embedding_dim: hidden_size,
         use_layer_mix: false,
         freeze_decoder: true,
