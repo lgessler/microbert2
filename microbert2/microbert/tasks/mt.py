@@ -90,9 +90,8 @@ class MTHead(torch.nn.Module, FromParams):
         #Mask pad tokens in labels so loss ignores them
         labels = tgt_input_ids.clone()
         pad_id = self.decoder.config.pad_token_id
-        ignore_index = self.decoder.config.ignore_index
         if pad_id is not None:
-            labels[labels == pad_id] = ignore_index
+            labels[labels == pad_id] = pad_id
         out = self.decoder(
             encoder_outputs=enc_out,
             attention_mask=encoder_attention_mask, 
