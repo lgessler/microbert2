@@ -23,21 +23,22 @@ logger = getLogger(__name__)
 class MTHead(torch.nn.Module, FromParams):
     def __init__(
             self,
-            num_layers: int,
+            num_encoder_layers: int,
             embedding_dim: int,
             mbert_model_name: str = "facebook/mbart-large-50",
-            use_layer_mix: bool = True,
+            use_layer_mix: bool = False,
             freeze_decoder: bool = True,
             train_last_k_decoder_layers: int = 0
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
         self.proj = None
-        self.perplexity = Perplexity(ignore_index=-100)
-        if self.use_layer_mix:
-            self.mix = ScalarMix(num_layers) 
-
         self.mbart = AutoModelForSeq2SeqLM.from_pretrained(mbert_model_name)
+        ignore_index = self.mbart.config.ignore_index
+        self.perplexity = Perplexity(ignore_index=ignore_index)
+        if self.use_layer_mix:
+            self.mix = ScalarMix(num_encoder_layers) 
+
         d_model = self.mbart.config.d_model  
         if embedding_dim != d_model:
             self.proj = torch.nn.Linear(embedding_dim, d_model)
@@ -89,9 +90,9 @@ class MTHead(torch.nn.Module, FromParams):
         #Mask pad tokens in labels so loss ignores them
         labels = tgt_input_ids.clone()
         pad_id = self.mbart.config.pad_token_id
+        ignore_index = self.mbart.config.ignore_index
         if pad_id is not None:
-            labels[labels == pad_id] = -100
-
+            labels[labels == pad_id] = ignore_index
         out = self.mbart(
             encoder_outputs=enc_out,
             attention_mask=encoder_attention_mask, 
@@ -100,8 +101,7 @@ class MTHead(torch.nn.Module, FromParams):
             use_cache=False,
         )
         loss = out.loss
-        log_probs = F.log_softmax(out.logits, dim=-1)
-        self.perplexity.update(log_probs, labels)
+        self.perplexity.update(out.logits, labels)
         return {"loss": loss, "perplexity": self.perplexity.compute()}
     
 
@@ -132,10 +132,11 @@ class MTTask(MicroBERTTask, CustomDetHash):
             dev_mt_path: str,
             test_mt_path: Optional[str] = None,
             delimiter: str = "\t",
-            proportion: float = 0.1, #0.2 0.5 coptic
+            proportion: float = 0.1,
             mbart_tokenizer_name: str = "facebook/mbart-large-50",
             tgt_lang_code: str = "en_XX",
-            max_tgt_len: int = 128,
+            src_lang_code: str = "ar_AR",
+            max_tgt_len: int = 512,
     ):
         self._head = head
         self._dataset = {
@@ -149,8 +150,7 @@ class MTTask(MicroBERTTask, CustomDetHash):
 
         # MBART 
         self._tok = AutoTokenizer.from_pretrained(mbart_tokenizer_name,use_fast=False)
-        #self._tok.add_special_tokens({"additional_special_tokens": ["<cop_XX>"]})
-        self._tok.src_lang = "ar_AR"  
+        self._tok.src_lang = src_lang_code
         self._tok.tgt_lang = tgt_lang_code
         self._pad = self._tok.pad_token_id
         self._max_tgt_len = max_tgt_len
