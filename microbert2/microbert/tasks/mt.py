@@ -25,7 +25,7 @@ class MTHead(torch.nn.Module, FromParams):
             self,
             num_encoder_layers: int,
             embedding_dim: int,
-            mbert_model_name: str = "facebook/mbart-large-50",
+            decoder_model_name: str = "facebook/mbart-large-50",
             use_layer_mix: bool = False,
             freeze_decoder: bool = True,
             train_last_k_decoder_layers: int = 0
@@ -33,34 +33,34 @@ class MTHead(torch.nn.Module, FromParams):
         super().__init__()
         self.use_layer_mix = use_layer_mix
         self.proj = None
-        self.mbart = AutoModelForSeq2SeqLM.from_pretrained(mbert_model_name)
-        ignore_index = self.mbart.config.ignore_index
-        self.perplexity = Perplexity(ignore_index=ignore_index)
+        self.decoder = AutoModelForSeq2SeqLM.from_pretrained(decoder_model_name)
+        self.pad_token_id = self.decoder.config.pad_token_id
+        self.perplexity = Perplexity(ignore_index=self.pad_token_id)
         if self.use_layer_mix:
             self.mix = ScalarMix(num_encoder_layers) 
 
-        d_model = self.mbart.config.d_model  
+        d_model = self.decoder.config.d_model
         if embedding_dim != d_model:
             self.proj = torch.nn.Linear(embedding_dim, d_model)
             logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
 
         if freeze_decoder and train_last_k_decoder_layers == 0:
-            for p in self.mbart.model.decoder.parameters():
+            for p in self.decoder.model.decoder.parameters():
                 p.requires_grad = False
             logger.info("Decoder frozen")
         elif train_last_k_decoder_layers > 0:
             # freeze all first
-            for p in self.mbart.model.decoder.parameters():
+            for p in self.decoder.model.decoder.parameters():
                 p.requires_grad = False
             # unfreeze top-K layers
-            layers = self.mbart.model.decoder.layers
+            layers = self.decoder.model.decoder.layers
             K = min(train_last_k_decoder_layers, len(layers))
             for layer in layers[-K:]:
                 for p in layer.parameters():
                     p.requires_grad = True
             logger.info(f"Decoder top {K} layer(s) unfrozen")
         else:
-            for p in self.mbart.model.decoder.parameters():
+            for p in self.decoder.model.decoder.parameters():
                 p.requires_grad = True
             logger.info("Decoder fully trainable")
 
@@ -89,11 +89,11 @@ class MTHead(torch.nn.Module, FromParams):
         enc_out = BaseModelOutput(last_hidden_state=enc)
         #Mask pad tokens in labels so loss ignores them
         labels = tgt_input_ids.clone()
-        pad_id = self.mbart.config.pad_token_id
-        ignore_index = self.mbart.config.ignore_index
+        pad_id = self.decoder.config.pad_token_id
+        ignore_index = self.decoder.config.ignore_index
         if pad_id is not None:
             labels[labels == pad_id] = ignore_index
-        out = self.mbart(
+        out = self.decoder(
             encoder_outputs=enc_out,
             attention_mask=encoder_attention_mask, 
             decoder_attention_mask=tgt_attention_mask,
@@ -133,7 +133,7 @@ class MTTask(MicroBERTTask, CustomDetHash):
             test_mt_path: Optional[str] = None,
             delimiter: str = "\t",
             proportion: float = 0.1,
-            mbart_tokenizer_name: str = "facebook/mbart-large-50",
+            decoder_tokenizer_name: str = "facebook/mbart-large-50",
             tgt_lang_code: str = "en_XX",
             src_lang_code: str = "ar_AR",
             max_tgt_len: int = 512,
@@ -145,11 +145,10 @@ class MTTask(MicroBERTTask, CustomDetHash):
             "test":  read_parallel_tsv(test_mt_path, delimiter) if test_mt_path else [],
         }
         self._proportion = proportion
-        self._mbart_tokenizer_name = mbart_tokenizer_name
+        self._decoder_tokenizer_name = decoder_tokenizer_name
         self._tgt_lang_code = tgt_lang_code
 
-        # MBART 
-        self._tok = AutoTokenizer.from_pretrained(mbart_tokenizer_name,use_fast=False)
+        self._tok = AutoTokenizer.from_pretrained(decoder_tokenizer_name,use_fast=False)
         self._tok.src_lang = src_lang_code
         self._tok.tgt_lang = tgt_lang_code
         self._pad = self._tok.pad_token_id
