@@ -59,6 +59,7 @@ class MicroBERTModel(Model):
         self,
         encoder: MicroBERTEncoder,
         tasks: list[MicroBERTTask] = [],
+        loss_auto_scaling: bool = False,
         *args,
         **kwargs,
     ):
@@ -77,6 +78,10 @@ class MicroBERTModel(Model):
         self.encoder = encoder
         self.tasks = tasks
         self.task_heads = nn.ModuleList([task.construct_head(self) for task in tasks])
+        self.loss_scalars = None
+        if loss_auto_scaling:
+            logger.info("Loss auto scaling is ENABLED, initializing learnable loss parameters.")
+            self.loss_scalars = nn.ParameterList([nn.Parameter(torch.tensor(1.0)) for _ in tasks])
         logger.info(f"Initialized MicroBERT model: {self}")
 
     def forward(
@@ -113,10 +118,12 @@ class MicroBERTModel(Model):
             }
         }
 
-        loss = torch.tensor(0.0, device=input_ids.device)
+        losses = []
         for i, task in enumerate(self.tasks):
             indexes = dataset_id >= 0 if task.universal else dataset_id == i
             if indexes.sum(0).item() == 0:
+                outputs[task.slug + "_loss"] = torch.tensor(0.0, device=input_ids.device)
+                losses.append(outputs[task.slug + "_loss"])
                 continue
 
             task_args = {}
@@ -137,13 +144,23 @@ class MicroBERTModel(Model):
 
             # Add task loss to total loss
             outputs[task.slug + "_loss"] = task_outputs["loss"]
-            loss += task_outputs["loss"]
+            losses.append(task_outputs["loss"])
 
             # Add task outputs to progress items
             for k in task.progress_items:
                 if k in task_outputs:
                     outputs["progress_items"][task.slug + "_" + k] = task_outputs[k]
                     outputs[task.slug + "_" + k] = task_outputs[k]
+            if self.loss_scalars is not None:
+                outputs[task.slug + "_loss_coeff"] = self.loss_scalars[i].item() ** -2
+
+        # Cf. https://arxiv.org/abs/1705.07115, equation 10
+        loss = torch.tensor(0.0, device=input_ids.device)
+        if self.loss_scalars is not None:
+            for i, s in enumerate(self.loss_scalars):
+                penalty = s.log()
+                coefficient = s**-2
+                loss += penalty + coefficient * losses[i]
 
         outputs["loss"] = loss
         return outputs

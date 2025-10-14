@@ -644,17 +644,22 @@ def _train(
                 dist.all_reduce(batch_loss_tensor)
                 batch_loss = batch_loss_tensor.detach().item() / config.world_size
 
-            # Tensorboard writing
-            writer.add_scalar(
-                "Train/lr",
-                torch.tensor(training_engine.lr_scheduler.get_last_lr(), dtype=torch.float),
-                global_step=global_step,
-            )
-            if "progress_items" in batch_outputs[0]:
-                for bo in batch_outputs:
-                    for k, v in bo["progress_items"].items():
-                        writer.add_scalar(f"Train/{k}", torch.tensor(v, dtype=torch.float), global_step=global_step)
-                    writer.add_scalar(f"Train/loss", bo["loss"], global_step=global_step)
+            # Tensorboard writing: only do it every 100 steps after the first 5000
+            if step > 5000 and step % 100 == 0:
+                writer.add_scalar(
+                    "Train/lr",
+                    torch.tensor(training_engine.lr_scheduler.get_last_lr(), dtype=torch.float),
+                    global_step=global_step,
+                )
+                if "progress_items" in batch_outputs[0]:
+                    for bo in batch_outputs:
+                        for k, v in bo.items():
+                            if not k.endswith("_loss_coeff"):
+                                continue
+                            writer.add_scalar(f"Train/{k}", torch.tensor(v, dtype=torch.float), global_step=global_step)
+                        for k, v in bo["progress_items"].items():
+                            writer.add_scalar(f"Train/{k}", torch.tensor(v, dtype=torch.float), global_step=global_step)
+                        writer.add_scalar(f"Train/loss", bo["loss"], global_step=global_step)
             if config.should_log_this_step(step):
                 # Callbacks.
                 for callback in callbacks:
