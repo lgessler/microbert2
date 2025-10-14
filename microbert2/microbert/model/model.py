@@ -161,6 +161,9 @@ class MicroBERTModel(Model):
                 penalty = s.log()
                 coefficient = s**-2
                 loss += penalty + coefficient * losses[i]
+        else:
+            for task_loss in losses:
+                loss += task_loss
 
         outputs["loss"] = loss
         return outputs
