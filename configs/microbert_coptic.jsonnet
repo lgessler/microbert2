@@ -118,7 +118,7 @@ local parse_task = {
 local mt_task = {
     type: "microbert2.microbert.tasks.mt_task.MTTask",
     head: {
-        num_layers: num_layers,
+        num_encoder_layers: num_layers,
         embedding_dim: hidden_size,
         use_layer_mix: false,
         freeze_decoder: true,
