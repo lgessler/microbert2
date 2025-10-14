@@ -40,7 +40,9 @@ class MBARTMTHead(torch.nn.Module, FromParams):
 
         d_model = self.mbart.config.d_model
         self.pad_token_id = self.mbart.config.pad_token_id
-        self.perplexity = Perplexity(ignore_index=self.pad_token_id)
+        # Note: ignore_index is -100 because this is what we're already transforming the pad token into
+        # for our labels because MBartDecoder expects this value.
+        self.perplexity = Perplexity(ignore_index=-100)
 
         # Layer mixing and linear projection after decoder
         if self.use_layer_mix:
@@ -87,8 +89,7 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         # See https://github.com/huggingface/transformers/blob/8ac2b916b042b1f78b75c9eb941c0f5d2cdd8e10/src/transformers/models/mbart/modeling_mbart.py#L1386-L1389
         labels = tgt_input_ids.clone()
         pad_id = self.mbart.config.pad_token_id
-        if pad_id is not None:
-            labels[labels == pad_id] = -100
+        labels[labels == pad_id] = -100
 
         out = self.mbart(
             encoder_outputs=BaseModelOutput(last_hidden_state=encoder_states),
