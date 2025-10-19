@@ -22,11 +22,11 @@ local stanza_language_code = null;
 local vocab_size = 20000;
 
 // Data ---------------------------------------------------------------------------
-local whitespace_tokenized_text_path_train = "../../slate/tam/train.txt";
-local whitespace_tokenized_text_path_dev = "../../slate/tam/dev.txt";
-local train_mt_path = "../../slate/tam/train.tsv";
-local dev_mt_path = "../../slate/tam/dev.tsv";
-local test_mt_path = "../../slate/tam/test.tsv";
+local whitespace_tokenized_text_path_train = "../slate/tam/train.txt";
+local whitespace_tokenized_text_path_dev = "../slate/tam/dev.txt";
+local train_mt_path = "../slate/tam/train.tsv";
+local dev_mt_path = "../slate/tam/dev.tsv";
+local test_mt_path = "../slate/tam/test.tsv";
 
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
