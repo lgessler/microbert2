@@ -31,7 +31,7 @@ local test_mt_path = "../slate/mlt/test.tsv";
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
 local hidden_size = 128;
-local num_layers = 6;
+local num_layers = 4;
 // Type of encoder stack. See microbert2/microbert/model/encoder.py for implementations.
 local bert_type = "bert";
 // local bert_type = "modernbert";
