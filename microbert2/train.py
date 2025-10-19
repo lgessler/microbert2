@@ -238,6 +238,7 @@ class Train(Step):
         auto_aggregate_val_metric: bool = True,
         callbacks: Optional[List[Lazy[TrainCallback]]] = None,
         remove_stale_checkpoints: bool = True,
+        run_name: Optional[str] = None,
     ) -> Model:
 
         is_distributed = False
@@ -344,6 +345,7 @@ def _train(
     validation_dataloader: Optional[Lazy[DataLoader]] = None,
     callbacks: Optional[List[Lazy[TrainCallback]]] = None,
     include_package: Optional[Set[str]] = None,
+    run_name: Optional[str] = None,
 ) -> Optional[Model]:
     # Set random seeds.
     set_seed_all(config.seed)
