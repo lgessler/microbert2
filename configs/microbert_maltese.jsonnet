@@ -55,7 +55,7 @@ local bert_config = {
 };
 
 // Training and Optimization ------------------------------------------------------
-local batch_size = 256;
+local batch_size = 128;
 local grad_accum = 1;
 local effective_batch_size = grad_accum * batch_size;
 local num_steps = 150000;
