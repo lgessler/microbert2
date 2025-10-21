@@ -56,14 +56,14 @@ local bert_config = {
 
 // Training and Optimization ------------------------------------------------------
 local batch_size = 128;
-local grad_accum = 1;
+local grad_accum = 2;
 local effective_batch_size = grad_accum * batch_size;
-local num_steps = 150000;
+local num_steps = 200000;
 local validate_every = 5000;  // in steps
 
 local optimizer = {
     type: "torch::AdamW",
-    lr: 5e-5,
+    lr: 2e-4,
     betas: [0.9, 0.98],
     eps: 1e-6,
     weight_decay: 0.01
