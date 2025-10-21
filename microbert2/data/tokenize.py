@@ -156,21 +156,7 @@ class TrainTokenizer(Step):
     DETERMINISTIC = True
     CACHEABLE = True
     FORMAT = DillFormat()
-    def _ensure_str_tokens(seq, sent_idx: int) -> list[str]:
-        # Accept either {"tokens": [...]} or a raw list
-        if isinstance(seq, dict):
-            seq = seq.get("tokens", None)
-        if seq is None:
-            raise ValueError(f"Sentence {sent_idx} is None or has no 'tokens' field.")
 
-        bad = [(j, t) for j, t in enumerate(seq) if not isinstance(t, str)]
-        if bad:
-            examples = ", ".join(f"(pos {j}: {repr(t)})" for j, t in bad[:5])
-            raise ValueError(
-                f"Non-string tokens in sentence {sent_idx}: {examples}. "
-                "Fix your reader or clean the dataset."
-            )
-        return seq
     def run(
         self,
         dataset: dict,
@@ -187,9 +173,8 @@ class TrainTokenizer(Step):
         sentences = [x["tokens"] for x in dataset["train"]]
         tokens = [" ".join(s) for s in sentences]
         for task in tasks:
-            for i, sentence in enumerate(task.dataset["train"]):
-                s = self._ensure_str_tokens(sentence, i)
-                tokens.append(" ".join(s))
+            for sentence in task.dataset["train"]:
+                tokens.append(" ".join(sentence["tokens"]))
         tokenizer = train_tokenizer(
             tokens,
             model_path,
