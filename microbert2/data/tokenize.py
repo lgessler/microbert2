@@ -173,8 +173,27 @@ class TrainTokenizer(Step):
         sentences = [x["tokens"] for x in dataset["train"]]
         tokens = [" ".join(s) for s in sentences]
         for task in tasks:
-            for sentence in task.dataset["train"]:
-                tokens.append(" ".join(sentence["tokens"]))
+            self.logger.info(f"Processing task: {task}")
+            for i, sentence in enumerate(task.dataset["train"]):
+                try:
+                    sentence_tokens = sentence["tokens"]
+                    
+                    # Check for None values and log them
+                    none_indices = [idx for idx, token in enumerate(sentence_tokens) if token is None]
+                    if none_indices:
+                        self.logger.warning(f"Task {task}, sentence {i}: Found None at indices {none_indices}")
+                        self.logger.warning(f"  Full tokens: {sentence_tokens}")
+                        self.logger.warning(f"  Sentence keys: {sentence.keys()}")
+                        self.logger.warning(f"  Full sentence: {sentence}")
+                    
+                    # Try the original join (will fail if None exists)
+                    tokens.append(" ".join(sentence_tokens))
+                    
+                except TypeError as e:
+                    self.logger.error(f"Task {task}, sentence {i}: TypeError - {e}")
+                    self.logger.error(f"  Tokens: {sentence_tokens}")
+                    self.logger.error(f"  Full sentence: {sentence}")
+                    raise  # Re-raise to stop execution
         tokenizer = train_tokenizer(
             tokens,
             model_path,
