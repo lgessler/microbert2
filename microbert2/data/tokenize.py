@@ -177,7 +177,7 @@ class TrainTokenizer(Step):
             if none_indices:
                 self.logger.warning(f"Main dataset, sentence {i}: Found None at indices {none_indices}")
                 self.logger.warning(f"  Tokens: {s}")
-        tokens = [" ".join(s) for s in sentences]
+        tokens = [" ".join("None" if t is None else str(t) for t in s) for s in sentences]
         for task in tasks:
             for sentence in task.dataset["train"]:
                 tokens.append(" ".join(sentence["tokens"]))
