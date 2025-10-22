@@ -40,7 +40,7 @@ local bert_config = {
 
 // Training -----------------------------------------------------------------------
 local batch_size = 128;
-local grad_accum = 2;
+local grad_accum = 1;
 local effective_batch_size = grad_accum * batch_size;
 local num_steps = 1e5;
 local validate_every = 1000;  // in steps
@@ -118,7 +118,7 @@ local model = {
 };
 
 local training_engine = {
-    type: "torch",
+    type: "mb2",
     optimizer: optimizer,
     lr_scheduler: lr_scheduler,
     amp: false,
