@@ -646,11 +646,10 @@ def _train(
 
             # Tensorboard writing: only do it every 100 steps after the first 5000
             if step > 5000 and step % 100 == 0:
-                writer.add_scalar(
-                    "Train/lr",
-                    torch.tensor(training_engine.lr_scheduler.get_last_lr(), dtype=torch.float),
-                    global_step=global_step,
-                )
+                lr = torch.tensor(training_engine.lr_scheduler.get_last_lr(), dtype=torch.float)
+                if not (len(lr.shape) == 1 and lr.shape[0] == 1):
+                    lr = lr[0]
+                writer.add_scalar("Train/lr", lr, global_step=global_step)
                 if "progress_items" in batch_outputs[0]:
                     for bo in batch_outputs:
                         for k, v in bo.items():
@@ -749,7 +748,7 @@ def _train(
 
                     # Print to stdout
                     out_str = f"Metrics for validation after training step {step}:\n\n"
-                    for k, v in batch_outputs[-1]["progress_items"].items():
+                    for k, v in outputs["progress_items"].items():
                         writer.add_scalar(f"Val/{k}", v.float(), global_step=global_step)
                         out_str += f"\t{k}: {v.item():0.4f}\n"
                     out_str += "\n"
