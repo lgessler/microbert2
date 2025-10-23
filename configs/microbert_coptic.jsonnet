@@ -158,7 +158,7 @@ local model = {
 };
 
 local training_engine = {
-    type: "torch",
+    type: "mb2",
     optimizer: optimizer,
     lr_scheduler: lr_scheduler,
     amp: false,
