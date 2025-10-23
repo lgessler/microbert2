@@ -748,7 +748,7 @@ def _train(
 
                     # Print to stdout
                     out_str = f"Metrics for validation after training step {step}:\n\n"
-                    for k, v in batch_outputs[-1]["progress_items"].items():
+                    for k, v in outputs["progress_items"].items():
                         writer.add_scalar(f"Val/{k}", v.float(), global_step=global_step)
                         out_str += f"\t{k}: {v.item():0.4f}\n"
                     out_str += "\n"
