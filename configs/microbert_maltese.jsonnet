@@ -4,26 +4,29 @@
 local language = "maltese";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "maltese_mt";
+local experiment_name = "maltese_mlm";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
 // in the quality of your tokenization, or if your language is not supported by Stanza.
-local stanza_retokenize = false;
+local stanza_retokenize = true;
 // Do you want Stanza to look for multi-word tokens? See https://stanfordnlp.github.io/stanza/mwt.html
 // You probably want to keep this at `false`, since in many languges, the subtokens
 // can differ quite a bit from surface forms (e.g. aux => à + les in French)
 local stanza_use_mwt = false;
 // Only needed if stanza_retokenize is `true`. Find your language code here:
 // https://stanfordnlp.github.io/stanza/performance.html
-local stanza_language_code = null;
+local stanza_language_code = "mt";
 // If set to null, we will attempt to guess something sensible. For reference, BERT
 // has 30000 vocabulary items.
-local vocab_size = 16000;
+local vocab_size = 10000;
 
 // Data ---------------------------------------------------------------------------
 local whitespace_tokenized_text_path_train = "../slate/mlt/train.txt";
 local whitespace_tokenized_text_path_dev = "../slate/mlt/dev.txt";
+local train_conllu_path = "../slate/mlt/mt_mudt-ud-train.conllu";
+local dev_conllu_path = "../slate/mlt/mt_mudt-ud-dev.conllu";
+local test_conllu_path = "../slate/mlt/mt_mudt-ud-test.conllu";
 local train_mt_path = "../slate/mlt/train.tsv";
 local dev_mt_path = "../slate/mlt/dev.tsv";
 local test_mt_path = "../slate/mlt/test.tsv";
@@ -58,15 +61,15 @@ local bert_config = {
 local batch_size = 128;
 local grad_accum = 2;
 local effective_batch_size = grad_accum * batch_size;
-local num_steps = 200000;
+local num_steps = 150000;
 local validate_every = 5000;  // in steps
 
 local optimizer = {
     type: "torch::AdamW",
-    lr: 2e-4,
+    lr: 3e-3,
     betas: [0.9, 0.98],
     eps: 1e-6,
-    weight_decay: 0.01
+    weight_decay: 0.05
 };
 
 local lr_scheduler = {
@@ -94,6 +97,20 @@ local mlm_task = {
     type: "microbert2.microbert.tasks.mlm.MLMTask",
     dataset: { type: "ref", ref: "raw_text_data" },
     tokenizer: tokenizer,
+};
+local pos_task = {
+    type: "microbert2.microbert.tasks.ud_pos.UDPOSTask",
+    head: {
+        num_layers: num_layers,
+        embedding_dim: hidden_size,
+        use_layer_mix: false,
+        layer_index: 1,
+    },
+    tag_type: "xpos",
+    train_conllu_path: train_conllu_path,
+    dev_conllu_path: dev_conllu_path,
+    test_conllu_path: test_conllu_path,
+    proportion: 0.2,
 };
 local mt_task = {
     type: "microbert2.microbert.tasks.mbart_mt.MBARTMTTask",
