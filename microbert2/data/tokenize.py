@@ -33,6 +33,8 @@ class SubwordTokenize(Step):
         offsets = []
         truncated = False
         for i, token_string in enumerate(string_tokens):
+            # Convert None to string "None" to match tokenizer training
+            token_string = "None" if token_string is None else str(token_string)
             wordpieces = tokenizer.encode_plus(
                 token_string,
                 add_special_tokens=False,
