@@ -4,29 +4,29 @@
 local language = "tamil";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "tamil_mt";
+local experiment_name = "tamil_mt_mlm";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
 // in the quality of your tokenization, or if your language is not supported by Stanza.
-local stanza_retokenize = false;
+local stanza_retokenize = true;
 // Do you want Stanza to look for multi-word tokens? See https://stanfordnlp.github.io/stanza/mwt.html
 // You probably want to keep this at `false`, since in many languges, the subtokens
 // can differ quite a bit from surface forms (e.g. aux => à + les in French)
 local stanza_use_mwt = false;
 // Only needed if stanza_retokenize is `true`. Find your language code here:
 // https://stanfordnlp.github.io/stanza/performance.html
-local stanza_language_code = null;
+local stanza_language_code = "ta";
 // If set to null, we will attempt to guess something sensible. For reference, BERT
 // has 30000 vocabulary items.
-local vocab_size = 20000;
+local vocab_size = 10000;
 
 // Data ---------------------------------------------------------------------------
-local whitespace_tokenized_text_path_train = "/Users/phakphumartkaew/Desktop/tam/train.txt";
-local whitespace_tokenized_text_path_dev = "/Users/phakphumartkaew/Desktop/tam/dev.txt";
-local train_mt_path = "/Users/phakphumartkaew/Desktop/tam/train.tsv";
-local dev_mt_path = "/Users/phakphumartkaew/Desktop/tam/dev.tsv";
-local test_mt_path = "/Users/phakphumartkaew/Desktop/tam/test.tsv";
+local whitespace_tokenized_text_path_train = "../slate/tam/train.txt";
+local whitespace_tokenized_text_path_dev = "../slate/tam/dev.txt";
+local train_mt_path = "../slate/tam/train.tsv";
+local dev_mt_path = "../slate/tam/dev.tsv";
+local test_mt_path = "../slate/tam/test.tsv";
 
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
@@ -55,7 +55,7 @@ local bert_config = {
 };
 
 // Training and Optimization ------------------------------------------------------
-local batch_size = 256;
+local batch_size = 128;
 local grad_accum = 1;
 local effective_batch_size = grad_accum * batch_size;
 local num_steps = 150000;
@@ -63,10 +63,10 @@ local validate_every = 5000;  // in steps
 
 local optimizer = {
     type: "torch::AdamW",
-    lr: 5e-5,
+    lr: 3e-3,
     betas: [0.9, 0.98],
     eps: 1e-6,
-    weight_decay: 0.01
+    weight_decay: 0.05
 };
 
 local lr_scheduler = {
@@ -199,6 +199,7 @@ local val_dataloader = {
         trained_model: {
             type: "microbert2.train::train",
             model: model,
+            run_name: experiment_name,
             dataset_dict: { type: "ref", ref: "model_inputs" },
             training_engine: training_engine,
             log_every: 1,

@@ -171,10 +171,10 @@ class TrainTokenizer(Step):
             self.logger.info(f"Already found model at {model_path}. Removing...")
             shutil.rmtree(model_path)
         sentences = [x["tokens"] for x in dataset["train"]]
-        tokens = [" ".join(s) for s in sentences]
+        tokens = [" ".join("None" if t is None else str(t) for t in s) for s in sentences]
         for task in tasks:
             for sentence in task.dataset["train"]:
-                tokens.append(" ".join(sentence["tokens"]))
+                tokens.append(" ".join("None" if t is None else str(t) for t in sentence.get("tokens",[])))
         tokenizer = train_tokenizer(
             tokens,
             model_path,
