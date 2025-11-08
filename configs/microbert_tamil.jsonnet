@@ -4,7 +4,7 @@
 local language = "tamil";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "tamil_mt_mlm";
+local experiment_name = "tamil_mlm_pos_mb2";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -24,6 +24,9 @@ local vocab_size = 10000;
 // Data ---------------------------------------------------------------------------
 local whitespace_tokenized_text_path_train = "../slate/tam/train.txt";
 local whitespace_tokenized_text_path_dev = "../slate/tam/dev.txt";
+local train_conllu_path = "../slate/tam/ta_ttb-ud-train.conllu";
+local dev_conllu_path = "../slate/tam/ta_ttb-ud-dev.conllu";
+local test_conllu_path = "../slate/tam/ta_ttb-ud-test.conllu";
 local train_mt_path = "../slate/tam/train.tsv";
 local dev_mt_path = "../slate/tam/dev.tsv";
 local test_mt_path = "../slate/tam/test.tsv";
@@ -95,6 +98,20 @@ local mlm_task = {
     dataset: { type: "ref", ref: "raw_text_data" },
     tokenizer: tokenizer,
 };
+local pos_task = {
+    type:"microbert2.microbert.tasks.ud_pos.UDPOSTask",
+    head: {
+        num_layers: num_layers,
+        embedding_dim: hidden_size,
+        use_layer_mix: false,
+        layer_index: 1,
+    },
+    tag_type: "xpos",
+    train_conllu_path: train_conllu_path,
+    dev_conllu_path: dev_conllu_path,
+    test_conllu_path: test_conllu_path,
+    proportion: 0.2,
+};
 local mt_task = {
     type: "microbert2.microbert.tasks.mbart_mt.MBARTMTTask",
     train_mt_path: train_mt_path,
@@ -113,7 +130,7 @@ local mt_task = {
     proportion: 0.2,
     max_sequence_length: 128
 };
-local tasks = [mlm_task, mt_task];
+local tasks = [mlm_task,pos_task];
 // --------------------------------------------------------------------------------
 // Internal--don't modify below here unless you're sure you know what you're doing!
 // --------------------------------------------------------------------------------
@@ -131,7 +148,7 @@ local model = {
 };
 
 local training_engine = {
-    type: "torch",
+    type: "mb2",
     optimizer: optimizer,
     lr_scheduler: lr_scheduler,
     amp: false,
