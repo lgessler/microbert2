@@ -36,8 +36,8 @@ local max_length = 512;
 local hidden_size = 128;
 local num_layers = 4;
 // Type of encoder stack. See microbert2/microbert/model/encoder.py for implementations.
-local bert_type = "bert";
-// local bert_type = "modernbert";
+//local bert_type = "bert";
+local bert_type = "modernbert";
 // local bert_type = "electra";
 
 
@@ -54,7 +54,7 @@ local bert_config = {
     attention_dropout: 0.1,
     embedding_dropout: 0.1,
     mlp_dropout: 0.1,
-    global_attn_every_n_layers: 2,
+    global_attn_every_n_layers: 1,
 };
 
 // Training and Optimization ------------------------------------------------------
@@ -72,12 +72,12 @@ local optimizer = {
     weight_decay: 0.05
 };
 
-local lr_scheduler = {
-    type: "transformers::cosine",
-    num_warmup_steps: num_steps * 0.1,
-    num_training_steps: num_steps,
-};
-
+// local lr_scheduler = {
+//    type: "transformers::cosine",
+//    num_warmup_steps: num_steps * 0.1,
+//    num_training_steps: num_steps,
+// };
+local lr_scheduler = {type: "transformers::constant"};
 // When True, attempt to scale loss contribution from each task using learnable parameters
 // See https://arxiv.org/abs/1705.07115
 local loss_auto_scaling = false;
@@ -225,7 +225,7 @@ local val_dataloader = {
             train_steps: num_steps,
             grad_accum: grad_accum,
             validate_every: validate_every,
-            checkpoint_every: 5000,
+            checkpoint_every: validate_every,
             validation_split: "dev",
             validation_dataloader: val_dataloader,
             val_metric_name: "mlm_perplexity",

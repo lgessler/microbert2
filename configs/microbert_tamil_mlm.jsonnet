@@ -33,8 +33,8 @@ local max_length = 512;
 local hidden_size = 128;
 local num_layers = 4;
 // Type of encoder stack. See microbert2/microbert/model/encoder.py for implementations.
-local bert_type = "bert";
-// local bert_type = "modernbert";
+// local bert_type = "bert";
+local bert_type = "modernbert";
 // local bert_type = "electra";
 
 
@@ -51,7 +51,7 @@ local bert_config = {
     attention_dropout: 0.1,
     embedding_dropout: 0.1,
     mlp_dropout: 0.1,
-    global_attn_every_n_layers: 2,
+    global_attn_every_n_layers: 1,
 };
 
 // Training and Optimization ------------------------------------------------------
