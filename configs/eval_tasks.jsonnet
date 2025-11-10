@@ -22,6 +22,8 @@ local results_json = "dependency_parsing_results.json";
             type: "microbert2.microbert.eval.dependency_parsing::evaluate_dependency_parsing",
             model_path: model,
             save_path: save_path,
+            train_data_path: train_conllu_path,
+            dev_data_path: dev_conllu_path,
             test_data_path: test_conllu_path,
             save_predictions: save_predictions,
             predictions_output: predictions_output,

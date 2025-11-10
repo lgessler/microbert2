@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class DependencyParsingEvaluator:
     """Evaluator for dependency parsing tasks using DiaParser."""
 
-    def __init__(self, model_path: str, save_path: str) -> None:
+    def __init__(self, model_path: str, save_path: str, train_data_path: str, dev_data_path: str) -> None:
         """
         Initialize the dependency parsing evaluator.
 
@@ -26,6 +26,8 @@ class DependencyParsingEvaluator:
         """
         self.model_path = model_path
         self.save_path = save_path
+        self.train_data_path = train_data_path
+        self.dev_data_path = dev_data_path
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
         logger.info(f"Using device: {self.device}")
         self.parser = None
@@ -47,7 +49,7 @@ class DependencyParsingEvaluator:
             logger.error(f"Failed to load model: {e}")
             raise
     
-    def train(self, save_path: str,model_path) -> None:
+    def train(self, save_path: str, model_path: str, train_data_path: str, dev_data_path: str) -> None:
         """Placeholder for train method."""
         command = [
         "python", "-m", "diaparser.cmds.biaffine_dependency",
@@ -56,7 +58,9 @@ class DependencyParsingEvaluator:
         "-d", "0",
         "-p", save_path,
         "-f", "bert",
-        "--bert", model_path
+        "--bert", model_path, 
+        "--train", train_data_path,
+        "--dev", dev_data_path
         ]
         logger.info(f"Training model with command: {' '.join(command)}")
         try:
@@ -181,6 +185,8 @@ class EvaluateDependencyParsing(Step):
         save_predictions: bool = False,
         predictions_output: Optional[str] = None,
         save_path: str = "",
+        dev_data_path: str = "",
+        train_data_path: str = "",
         save_results_json: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
@@ -207,9 +213,9 @@ class EvaluateDependencyParsing(Step):
         self.logger.info(f"Test data: {test_data_path}")
 
         # Initialize evaluator (device is auto-detected)
-        evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path)
+        evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path, train_data_path=train_data_path, dev_data_path=dev_data_path)
         # Train the model before evaluation
-        evaluator.train(save_path=save_path, model_path=model_path)
+        evaluator.train(save_path=save_path, model_path=model_path, train_data_path=train_data_path, dev_data_path=dev_data_path)
         # Run evaluation
         results = evaluator.evaluate(
             test_data_path=test_data_path,
