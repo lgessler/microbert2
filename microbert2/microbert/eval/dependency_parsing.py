@@ -12,18 +12,22 @@ logger = logging.getLogger(__name__)
 class DependencyParsingEvaluator:
     """Evaluator for dependency parsing tasks using DiaParser."""
 
-    def __init__(self, model_path: str, save_path: str ) -> None:
+    def __init__(self, model_path: str, save_path: str) -> None:
         """
         Initialize the dependency parsing evaluator.
 
         Args:
             model_path: Path to the model or name of pretrained model
                        (e.g., 'en_ewt-electra', 'biaffine-dep-en', or path to custom model)
-            device: Device to run evaluation on (default: 'cuda:0')
+            save_path: Path to save the trained model
+
+        Note:
+            Device is automatically selected - GPU (cuda:0) if available, otherwise CPU
         """
         self.model_path = model_path
         self.save_path = save_path
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+        logger.info(f"Using device: {self.device}")
         self.parser = None
 
     def load_model(self) -> None:
@@ -152,13 +156,16 @@ class EvaluateDependencyParsing(Step):
     This step evaluates a dependency parsing model on test data and returns
     evaluation metrics including UAS, LAS, and loss.
 
+    Note:
+        Device is automatically detected - GPU (cuda:0) if available, otherwise CPU
+
     Example config (.jsonnet):
         {
             type: "microbert2.microbert.eval.dependency_parsing::evaluate_dependency_parsing",
             model_path: "en_ewt-electra",
             test_data_path: "../slate/mlt/mt_mudt-ud-test.conllu",
             save_predictions: true,
-            device: "cuda:0"
+            save_path: "./models/dep_parser"
         }
     """
 
@@ -171,7 +178,6 @@ class EvaluateDependencyParsing(Step):
         test_data_path: str,
         save_predictions: bool = False,
         predictions_output: Optional[str] = None,
-        device: str = "cuda:0",
         save_path: str = "",
         save_results_json: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -185,18 +191,21 @@ class EvaluateDependencyParsing(Step):
             save_predictions: Whether to save model predictions to file
             predictions_output: Path to save predictions
                               (default: <test_data_stem>_predictions.conllu)
-            device: Device to run evaluation on (default: 'cuda:0')
+            save_path: Path to save the trained model
             save_results_json: Optional path to save results as JSON
 
         Returns:
             Dictionary containing evaluation metrics (loss, UAS, LAS, UCM, LCM)
+
+        Note:
+            Device is automatically selected - GPU if available, otherwise CPU
         """
         self.logger.info("Starting dependency parsing evaluation")
         self.logger.info(f"Model: {model_path}")
         self.logger.info(f"Test data: {test_data_path}")
 
-        # Initialize evaluator
-        evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path, device=device)
+        # Initialize evaluator (device is auto-detected)
+        evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path)
         # Train the model before evaluation
         evaluator.train(save_path=save_path, model_path=model_path)
         # Run evaluation
@@ -218,7 +227,7 @@ class EvaluateDependencyParsing(Step):
         self.logger.info("=" * 60)
         self.logger.info(f"Model: {model_path}")
         self.logger.info(f"Test Data: {test_data_path}")
-        self.logger.info(f"Device: {device}")
+        self.logger.info(f"Device: {evaluator.device}")
         self.logger.info("-" * 60)
         self.logger.info(f"Loss: {results['loss']:.4f}")
         self.logger.info(f"UAS (Unlabeled Attachment Score): {results['UAS']:.2f}%")
