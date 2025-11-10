@@ -171,7 +171,6 @@ class EvaluateDependencyParsing(Step):
         test_data_path: str,
         save_predictions: bool = False,
         predictions_output: Optional[str] = None,
-        device: str = "cuda:0",
         save_path: str = "",
         save_results_json: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -196,7 +195,7 @@ class EvaluateDependencyParsing(Step):
         self.logger.info(f"Test data: {test_data_path}")
 
         # Initialize evaluator
-        evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path, device=device)
+        evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path)
         # Train the model before evaluation
         evaluator.train(save_path=save_path, model_path=model_path)
         # Run evaluation
@@ -218,7 +217,6 @@ class EvaluateDependencyParsing(Step):
         self.logger.info("=" * 60)
         self.logger.info(f"Model: {model_path}")
         self.logger.info(f"Test Data: {test_data_path}")
-        self.logger.info(f"Device: {device}")
         self.logger.info("-" * 60)
         self.logger.info(f"Loss: {results['loss']:.4f}")
         self.logger.info(f"UAS (Unlabeled Attachment Score): {results['UAS']:.2f}%")
