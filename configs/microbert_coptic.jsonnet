@@ -4,7 +4,7 @@
 local language = "coptic";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "coptic_mlm_mt";
+local experiment_name = "coptic_mlm";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -34,10 +34,10 @@ local test_mt_path = "data/cop/test.tsv";
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
 local hidden_size = 128;
-local num_layers = 6;
+local num_layers = 4;
 // Type of encoder stack. See microbert2/microbert/model/encoder.py for implementations.
-local bert_type = "bert";
-// local bert_type = "modernbert";
+// local bert_type = "bert";
+local bert_type = "modernbert";
 // local bert_type = "electra";
 
 // Encoder stack configuration.
@@ -53,7 +53,7 @@ local bert_config = {
     attention_dropout: 0.1,
     embedding_dropout: 0.1,
     mlp_dropout: 0.1,
-    global_attn_every_n_layers: 2,
+    global_attn_every_n_layers: 1,
 };
 
 // Training and Optimization ------------------------------------------------------
@@ -65,17 +65,18 @@ local validate_every = 5000;  // in steps
 
 local optimizer = {
     type: "torch::AdamW",
-    lr: 5e-5,
+    lr: 3e-3,
     betas: [0.9, 0.98],
     eps: 1e-6,
-    weight_decay: 0.01
+    weight_decay: 0.05
 };
 
-local lr_scheduler = {
-    type: "transformers::cosine",
-    num_warmup_steps: num_steps * 0.1,
-    num_training_steps: num_steps,
-};
+// local lr_scheduler = {
+//     type: "transformers::cosine",
+//     num_warmup_steps: num_steps * 0.1,
+//     num_training_steps: num_steps,
+// };
+local lr_scheduler = {type: "transformers::constant"};
 
 // When True, attempt to scale loss contribution from each task using learnable parameters
 // See https://arxiv.org/abs/1705.07115
@@ -138,7 +139,7 @@ local mt_task = {
     proportion: 0.2,
     max_sequence_length: 128
 };
-local tasks = [mlm_task, mt_task];
+local tasks = [mlm_task];
 
 
 // --------------------------------------------------------------------------------
@@ -234,7 +235,7 @@ local val_dataloader = {
             train_steps: num_steps,
             grad_accum: grad_accum,
             validate_every: validate_every,
-            checkpoint_every: 5000,
+            checkpoint_every: validate_every,
             validation_split: "dev",
             validation_dataloader: val_dataloader,
             val_metric_name: "mlm_perplexity",
