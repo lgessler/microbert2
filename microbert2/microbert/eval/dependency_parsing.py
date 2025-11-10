@@ -61,7 +61,7 @@ class DependencyParsingEvaluator:
         logger.info(f"Training model with command: {' '.join(command)}")
         try:
             result = subprocess.run(command, check=True, capture_output=True, text=True)
-            
+
             # Save training logs
             log_file = f"{save_path}/training.log"
             with open(log_file, 'w') as f:
@@ -73,6 +73,8 @@ class DependencyParsingEvaluator:
             logger.info("Model trained and saved successfully")
         except subprocess.CalledProcessError as e:
             logger.error(f"Training failed: {e}")
+            logger.error(f"STDOUT: {e.stdout}")
+            logger.error(f"STDERR: {e.stderr}")
             raise
                 
     
