@@ -10,7 +10,7 @@ local test_conllu_path = "../slate/mlt/mt_mudt-ud-test.conllu";
 // Examples: "en_ewt-electra", "biaffine-dep-en", or path to custom model
 local model = "en_ewt-electra";
 //path to save trained diaperser model
-local save_path = ""
+local save_path = "";
 // Evaluation settings
 local save_predictions = true;
 local predictions_output = "../slate/mlt/mt_mudt-ud-test_predictions.conllu";
