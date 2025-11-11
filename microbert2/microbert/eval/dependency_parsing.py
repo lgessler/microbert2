@@ -229,12 +229,13 @@ class EvaluateDependencyParsing(Step):
         #)
 
         # Save results to JSON if requested
-        if save_results_json:
-            with open(save_results_json, "w") as f:
-                json.dump(results, f, indent=2)
-            self.logger.info(f"Results saved to: {save_results_json}")
+        #if save_results_json:
+        #    with open(save_results_json, "w") as f:
+        #        json.dump(results, f, indent=2)
+        #    self.logger.info(f"Results saved to: {save_results_json}")
 
         # Print summary
+        """
         self.logger.info("\n" + "=" * 60)
         self.logger.info("DEPENDENCY PARSING EVALUATION SUMMARY")
         self.logger.info("=" * 60)
@@ -250,3 +251,5 @@ class EvaluateDependencyParsing(Step):
         self.logger.info("=" * 60)
 
         return results
+        """
+        return {}
