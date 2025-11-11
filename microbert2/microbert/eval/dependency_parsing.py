@@ -66,6 +66,9 @@ class DependencyParsingEvaluator:
         try:
             result = subprocess.run(command, check=True, capture_output=True, text=True)
 
+            # Create save directory if it doesn't exist
+            Path(save_path).mkdir(parents=True, exist_ok=True)
+
             # Save training logs
             log_file = f"{save_path}/training.log"
             with open(log_file, 'w') as f:
