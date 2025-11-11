@@ -51,6 +51,9 @@ class DependencyParsingEvaluator:
     
     def train(self, save_path: str, model_path: str, train_data_path: str, dev_data_path: str) -> None:
         """Placeholder for train method."""
+        # Create save directory if it doesn't exist (must be done before training)
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+
         command = [
         "python", "-m", "diaparser.cmds.biaffine_dependency",
         "train",
@@ -58,16 +61,13 @@ class DependencyParsingEvaluator:
         "-d", "0",
         "-p", save_path,
         "-f", "bert",
-        "--bert", model_path, 
+        "--bert", model_path,
         "--train", train_data_path,
         "--dev", dev_data_path
         ]
         logger.info(f"Training model with command: {' '.join(command)}")
         try:
             result = subprocess.run(command, check=True, capture_output=True, text=True)
-
-            # Create save directory if it doesn't exist
-            Path(save_path).mkdir(parents=True, exist_ok=True)
 
             # Save training logs
             log_file = f"{save_path}/training.log"
