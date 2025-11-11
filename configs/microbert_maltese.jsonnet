@@ -4,7 +4,7 @@
 local language = "maltese";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "maltese_mlm_mt_mb2_unfreeze2";
+local experiment_name = "maltese_mlm_mb2_modern";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -130,7 +130,7 @@ local mt_task = {
     proportion: 0.2,
     max_sequence_length: 128
 };
-local tasks = [mlm_task,mt_task];
+local tasks = [mlm_task];
 // --------------------------------------------------------------------------------
 // Internal--don't modify below here unless you're sure you know what you're doing!
 // --------------------------------------------------------------------------------

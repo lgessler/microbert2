@@ -4,7 +4,7 @@
 local language = "coptic";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "coptic_mlm";
+local experiment_name = "coptic_mlm_bert";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -36,8 +36,8 @@ local max_length = 512;
 local hidden_size = 128;
 local num_layers = 4;
 // Type of encoder stack. See microbert2/microbert/model/encoder.py for implementations.
-// local bert_type = "bert";
-local bert_type = "modernbert";
+local bert_type = "bert";
+// local bert_type = "modernbert";
 // local bert_type = "electra";
 
 // Encoder stack configuration.
@@ -53,7 +53,7 @@ local bert_config = {
     attention_dropout: 0.1,
     embedding_dropout: 0.1,
     mlp_dropout: 0.1,
-    global_attn_every_n_layers: 1,
+    global_attn_every_n_layers: 2,
 };
 
 // Training and Optimization ------------------------------------------------------
@@ -71,12 +71,12 @@ local optimizer = {
     weight_decay: 0.05
 };
 
-// local lr_scheduler = {
-//     type: "transformers::cosine",
-//     num_warmup_steps: num_steps * 0.1,
-//     num_training_steps: num_steps,
-// };
-local lr_scheduler = {type: "transformers::constant"};
+ local lr_scheduler = {
+     type: "transformers::cosine",
+     num_warmup_steps: num_steps * 0.1,
+     num_training_steps: num_steps,
+ };
+//local lr_scheduler = {type: "transformers::constant"};
 
 // When True, attempt to scale loss contribution from each task using learnable parameters
 // See https://arxiv.org/abs/1705.07115
@@ -227,6 +227,7 @@ local val_dataloader = {
         trained_model: {
             type: "microbert2.train::train",
             model: model,
+            run_name: experiment_name,
             dataset_dict: { type: "ref", ref: "model_inputs" },
             training_engine: training_engine,
             log_every: 1,

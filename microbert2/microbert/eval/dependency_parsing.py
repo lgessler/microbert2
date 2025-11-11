@@ -43,7 +43,7 @@ class DependencyParsingEvaluator:
 
         logger.info(f"Loading model from: {self.save_path}")
         try:
-            self.parser = Parser.load(self.save_path, device=self.device)
+            self.parser = Parser.load(f"{self.save_path}/model", device=self.device,weights_only=False)
             logger.info("Model loaded successfully")
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
@@ -59,7 +59,7 @@ class DependencyParsingEvaluator:
         "train",
         "-b",
         "-d", "0",
-        "-p", save_path,
+        "-p", f"{save_path}/model",
         "-f", "bert",
         "--bert", model_path,
         "--train", train_data_path,

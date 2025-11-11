@@ -10,7 +10,7 @@ local test_conllu_path = "../slate/mlt/mt_mudt-ud-test.conllu";
 // Examples: "en_ewt-electra", "biaffine-dep-en", or path to custom model
 local model = "workspace/models/maltese_maltese_mlm_mb2_attention_dropout-0.1_embedding_dropout-0.1_global_attn_every_n_layers-2_hidden_size-128_intermediate_size-192_max_position_embeddings-512_mlp_dropout-0.1_num_attention_heads-8_num_hidden_layers-4";
 //path to save trained diaperser model
-local save_path = "../slate";
+local save_path = "/N/u/partkaew/BigRed200/slate/dependency/maltese";
 // Evaluation settings
 local save_predictions = true;
 local predictions_output = "../slate/mlt/mt_mudt-ud-test_predictions.conllu";
