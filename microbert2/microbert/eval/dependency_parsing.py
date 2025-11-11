@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class DependencyParsingEvaluator:
     """Evaluator for dependency parsing tasks using DiaParser."""
 
-    def __init__(self, model_path: str, save_path: str, train_data_path: str, dev_data_path: str) -> None:
+    def __init__(self, model_path: str, save_path: str, train_data_path: str, dev_data_path: str, test_data_path: str) -> None:
         """
         Initialize the dependency parsing evaluator.
 
@@ -27,6 +27,7 @@ class DependencyParsingEvaluator:
         self.model_path = model_path
         self.save_path = save_path
         self.train_data_path = train_data_path
+        self.tetst_data_path = test_data_path
         self.dev_data_path = dev_data_path
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
         logger.info(f"Using device: {self.device}")
@@ -49,7 +50,7 @@ class DependencyParsingEvaluator:
             logger.error(f"Failed to load model: {e}")
             raise
     
-    def train(self, save_path: str, model_path: str, train_data_path: str, dev_data_path: str) -> None:
+    def train(self, save_path: str, model_path: str, train_data_path: str, dev_data_path: str, test_data_path: str) -> None:
         """Placeholder for train method."""
         # Create save directory if it doesn't exist (must be done before training)
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
@@ -63,7 +64,8 @@ class DependencyParsingEvaluator:
         "-f", "bert",
         "--bert", model_path,
         "--train", train_data_path,
-        "--dev", dev_data_path
+        "--dev", dev_data_path,
+        "--test", test_data_path
         ]
         logger.info(f"Training model with command: {' '.join(command)}")
         try:
@@ -217,14 +219,14 @@ class EvaluateDependencyParsing(Step):
 
         # Initialize evaluator (device is auto-detected)
         evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path, train_data_path=train_data_path, dev_data_path=dev_data_path)
-        # Train the model before evaluation
-        evaluator.train(save_path=save_path, model_path=model_path, train_data_path=train_data_path, dev_data_path=dev_data_path)
+        # Train the model  & Test the model
+        evaluator.train(save_path=save_path, model_path=model_path, train_data_path=train_data_path, dev_data_path=dev_data_path,test_data_path)
         # Run evaluation
-        results = evaluator.evaluate(
-            test_data_path=test_data_path,
-            save_predictions=save_predictions,
-            output_path=predictions_output,
-        )
+        #results = evaluator.evaluate(
+        #    test_data_path=test_data_path,
+        #    save_predictions=save_predictions,
+        #    output_path=predictions_output,
+        #)
 
         # Save results to JSON if requested
         if save_results_json:
