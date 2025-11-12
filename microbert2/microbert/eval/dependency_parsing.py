@@ -218,7 +218,7 @@ class EvaluateDependencyParsing(Step):
         self.logger.info(f"Test data: {test_data_path}")
 
         # Initialize evaluator (device is auto-detected)
-        evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path, train_data_path=train_data_path, dev_data_path=dev_data_path)
+        evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path, train_data_path=train_data_path, dev_data_path=dev_data_path,test_data_path=test_data_path)
         # Train the model  & Test the model
         evaluator.train(save_path=save_path, model_path=model_path, train_data_path=train_data_path, dev_data_path=dev_data_path, test_data_path=test_data_path)
         # Run evaluation
