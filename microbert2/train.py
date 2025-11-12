@@ -619,7 +619,8 @@ def _train(
 
             del batch
 
-            training_engine.step()
+            # Need outputs for reduce LR on plateau--use just the first microbatch
+            training_engine.step(batch_outputs[0]["loss"], epoch)
 
             # Find out whether we should validate
             if config.validation_split is None:

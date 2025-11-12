@@ -76,7 +76,12 @@ local optimizer = {
 //     num_warmup_steps: num_steps * 0.1,
 //     num_training_steps: num_steps,
 // };
-local lr_scheduler = {type: "transformers::constant"};
+local lr_scheduler = {
+    type: "transformers::reduce_lr_on_plateau",
+    factor: 0.8,
+    patience: 5,
+    min_lr=1e-5,
+};
 
 // When True, attempt to scale loss contribution from each task using learnable parameters
 // See https://arxiv.org/abs/1705.07115
