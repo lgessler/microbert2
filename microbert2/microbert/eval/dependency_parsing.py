@@ -213,11 +213,19 @@ class EvaluateDependencyParsing(Step):
         Note:
             Device is automatically selected - GPU if available, otherwise CPU
         """
-        import diaparser
         self.logger.info("Starting dependency parsing evaluation")
         self.logger.info(f"Model: {model_path}")
         self.logger.info(f"Test data: {test_data_path}")
-        torch.serialization.add_safe_globals([diaparser.utils.config.Config,diaparser.utils.field.BertField,diaparser.parsers.parser.Parser,diaparser.parsers.biaffine_dependency.BiaffineDependencyParser])
+
+        # Import diaparser classes for torch safe loading
+        try:
+            from diaparser.utils import Config, BertField
+            from diaparser.parsers import Parser, BiaffineDependencyParser
+            torch.serialization.add_safe_globals([Config, BertField, Parser, BiaffineDependencyParser])
+        except (ImportError, AttributeError) as e:
+            self.logger.warning(f"Could not import diaparser classes for safe globals: {e}")
+            # Fall back to allowing all pickle loads (less secure but necessary if structure changed)
+            pass
         # Initialize evaluator (device is auto-detected)
         evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path, train_data_path=train_data_path, dev_data_path=dev_data_path,test_data_path=test_data_path)
         # Train the model  & Test the model
