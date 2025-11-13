@@ -219,9 +219,11 @@ class EvaluateDependencyParsing(Step):
 
         # Import diaparser classes for torch safe loading
         try:
-            from diaparser.utils import Config, BertField
-            from diaparser.parsers import Parser, BiaffineDependencyParser
-            torch.serialization.add_safe_globals([Config, BertField, Parser, BiaffineDependencyParser])
+            import diaparser.utils.config
+            import diaparser.utils.field
+            import diaparser.parsers
+            import diaparser.parsers.biaffine_dependency
+            torch.serialization.add_safe_globals([diaparser.utils.config.Config,diaparser.utils.field.BertField,diaparser.parsers.Parser,diaparser.parsers.biaffine_dependency.BiaffineDependencyParser])
         except (ImportError, AttributeError) as e:
             self.logger.warning(f"Could not import diaparser classes for safe globals: {e}")
             # Fall back to allowing all pickle loads (less secure but necessary if structure changed)
