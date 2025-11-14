@@ -217,17 +217,19 @@ class EvaluateDependencyParsing(Step):
         self.logger.info(f"Model: {model_path}")
         self.logger.info(f"Test data: {test_data_path}")
 
-        # Import diaparser classes for torch safe loading
-        try:
-            import diaparser.utils.config
-            import diaparser.utils.field
-            import diaparser.parsers
-            import diaparser.parsers.biaffine_dependency
-            torch.serialization.add_safe_globals([diaparser.utils.config.Config,diaparser.utils.field.BertField,diaparser.parsers.Parser,diaparser.parsers.biaffine_dependency.BiaffineDependencyParser])
-        except (ImportError, AttributeError) as e:
-            self.logger.warning(f"Could not import diaparser classes for safe globals: {e}")
-            # Fall back to allowing all pickle loads (less secure but necessary if structure changed)
-            pass
+
+        import diaparser.utils.config
+        import diaparser.utils.field
+        import diaparser.parsers
+        import diaparser.parsers.biaffine_dependency
+
+        torch.serialization.add_safe_globals([
+            diaparser.utils.config.Config,
+            diaparser.utils.field.BertField,
+            diaparser.parsers.Parser,
+            diaparser.parsers.biaffine_dependency.BiaffineDependencyParser
+        ])
+
         # Initialize evaluator (device is auto-detected)
         evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path, train_data_path=train_data_path, dev_data_path=dev_data_path,test_data_path=test_data_path)
         # Train the model  & Test the model
