@@ -219,10 +219,7 @@ class EvaluateDependencyParsing(Step):
 
         # Import diaparser classes for torch safe loading
         try:
-            import diaparser.utils.config
-            import diaparser.utils.field
-            import diaparser.parsers
-            import diaparser.parsers.biaffine_dependency
+            import diaparser
             torch.serialization.add_safe_globals([diaparser.utils.config.Config,diaparser.utils.field.BertField,diaparser.parsers.Parser,diaparser.parsers.biaffine_dependency.BiaffineDependencyParser])
         except (ImportError, AttributeError) as e:
             self.logger.warning(f"Could not import diaparser classes for safe globals: {e}")
