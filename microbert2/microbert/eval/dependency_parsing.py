@@ -218,7 +218,10 @@ class EvaluateDependencyParsing(Step):
         self.logger.info(f"Test data: {test_data_path}")
 
 
-        import diaparser
+        import diaparser.utils.config
+        import diaparser.utils.field
+        import diaparser.parsers
+        import diaparser.parsers.biaffine_dependency
 
         torch.serialization.add_safe_globals([
             diaparser.utils.config.Config,
