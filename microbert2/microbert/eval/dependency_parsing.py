@@ -59,12 +59,13 @@ class DependencyParsingEvaluator:
         python_code = f"""
 import torch
 from diaparser.utils.config import Config
-from diaparser.utils.field import BertField
+from diaparser.utils.field import Field, BertField
 from diaparser.utils.transform import CoNLL
 from diaparser.parsers import Parser
 from diaparser.parsers.biaffine_dependency import BiaffineDependencyParser
 torch.serialization.add_safe_globals([
     Config,
+    Field,
     BertField,
     CoNLL,
     Parser,
