@@ -55,19 +55,37 @@ class DependencyParsingEvaluator:
         # Create save directory if it doesn't exist (must be done before training)
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
 
-        command = [
-        "python", "-m", "diaparser.cmds.biaffine_dependency",
-        "train",
-        "-b",
-        "-d", "0",
-        "-p", f"{save_path}/model",
-        "-f", "bert",
-        "--bert", model_path,
-        "--train", train_data_path,
-        "--dev", dev_data_path,
-        "--test", test_data_path
-        ]
-        logger.info(f"Training model with command: {' '.join(command)}")
+        # Use -c to run inline Python that adds safe globals before running diaparser
+        python_code = f"""
+import torch
+from diaparser.utils.config import Config
+from diaparser.utils.field import BertField
+from diaparser.parsers import Parser
+from diaparser.parsers.biaffine_dependency import BiaffineDependencyParser
+torch.serialization.add_safe_globals([
+    Config,
+    BertField,
+    Parser,
+    BiaffineDependencyParser
+])
+from diaparser.cmds.biaffine_dependency import main
+import sys
+sys.argv = [
+    'diaparser.cmds.biaffine_dependency',
+    'train',
+    '-b',
+    '-d', '0',
+    '-p', '{save_path}/model',
+    '-f', 'bert',
+    '--bert', '{model_path}',
+    '--train', '{train_data_path}',
+    '--dev', '{dev_data_path}',
+    '--test', '{test_data_path}'
+]
+main()
+"""
+        command = ["python", "-c", python_code]
+        logger.info(f"Training model with diaparser (with safe globals for PyTorch 2.6+)")
         try:
             result = subprocess.run(command, check=True, capture_output=True, text=True)
 
@@ -216,19 +234,6 @@ class EvaluateDependencyParsing(Step):
         self.logger.info("Starting dependency parsing evaluation")
         self.logger.info(f"Model: {model_path}")
         self.logger.info(f"Test data: {test_data_path}")
-
-
-        import diaparser.utils.config
-        import diaparser.utils.field
-        import diaparser.parsers
-        import diaparser.parsers.biaffine_dependency
-
-        torch.serialization.add_safe_globals([
-            diaparser.utils.config.Config,
-            diaparser.utils.field.BertField,
-            diaparser.parsers.Parser,
-            diaparser.parsers.biaffine_dependency.BiaffineDependencyParser
-        ])
 
         # Initialize evaluator (device is auto-detected)
         evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path, train_data_path=train_data_path, dev_data_path=dev_data_path,test_data_path=test_data_path)
