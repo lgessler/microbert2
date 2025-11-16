@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 import torch
 import subprocess
+import re
 from tango import Step
 
 logger = logging.getLogger(__name__)
@@ -50,50 +51,25 @@ class DependencyParsingEvaluator:
             logger.error(f"Failed to load model: {e}")
             raise
     
-    def train(self, save_path: str, model_path: str, train_data_path: str, dev_data_path: str, test_data_path: str) -> None:
-        """Placeholder for train method."""
+    def train(self, save_path: str, model_path: str, train_data_path: str, dev_data_path: str, test_data_path: str) -> Dict[str, Any]:
+        """Train model and return best test scores."""
         # Create save directory if it doesn't exist (must be done before training)
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
 
-        # Use -c to run inline Python that adds safe globals before running diaparser
-        python_code = f"""
-import torch
-import io
-from diaparser.utils.config import Config
-from diaparser.utils.field import Field, BertField
-from diaparser.utils.vocab import Vocab
-from diaparser.utils.transform import CoNLL
-from diaparser.parsers import Parser
-from diaparser.parsers.biaffine_dependency import BiaffineDependencyParser
-torch.serialization.add_safe_globals([
-    Config,
-    Field,
-    BertField,
-    Vocab,
-    CoNLL,
-    Parser,
-    BiaffineDependencyParser,
-    getattr,
-    io.open
-])
-from diaparser.cmds.biaffine_dependency import main
-import sys
-sys.argv = [
-    'diaparser.cmds.biaffine_dependency',
-    'train',
-    '-b',
-    '-d', '0',
-    '-p', '{save_path}/model',
-    '-f', 'bert',
-    '--bert', '{model_path}',
-    '--train', '{train_data_path}',
-    '--dev', '{dev_data_path}',
-    '--test', '{test_data_path}'
-]
-main()
-"""
-        command = ["python", "-c", python_code]
-        logger.info(f"Training model with diaparser (with safe globals for PyTorch 2.6+)")
+        # Use wrapper module that adds safe globals for PyTorch 2.6+ compatibility
+        command = [
+            "python", "-m", "microbert2.microbert.eval.diaparser_wrapper",
+            "train",
+            "-b",
+            "-d", "0",
+            "-p", f"{save_path}/model",
+            "-f", "bert",
+            "--bert", model_path,
+            "--train", train_data_path,
+            "--dev", dev_data_path,
+            "--test", test_data_path
+        ]
+        logger.info(f"Training model with command: {' '.join(command)}")
         try:
             result = subprocess.run(command, check=True, capture_output=True, text=True)
 
@@ -106,85 +82,52 @@ main()
                 f.write(result.stderr)
             logger.info(f"Training logs saved to: {log_file}")
             logger.info("Model trained and saved successfully")
+
+            # Parse best test scores from output
+            results = self._parse_test_scores(result.stderr + result.stdout)
+            return results
+
         except subprocess.CalledProcessError as e:
             logger.error(f"Training failed: {e}")
             logger.error(f"STDOUT: {e.stdout}")
             logger.error(f"STDERR: {e.stderr}")
             raise
+
+    def _parse_test_scores(self, output: str) -> Dict[str, Any]:
+        """Parse test scores from DiaParser training output."""
+        results = {}
+
+
+        # Look for test metrics
+        test_pattern = r'test.*?(?:UAS|LAS).*'
+        test_matches = re.findall(test_pattern, output, re.IGNORECASE)
+
+        if test_matches:
+            # Get the last test result (best model evaluation)
+            last_test = test_matches[-1]
+
+            # Extract individual metrics
+            uas_match = re.search(r'UAS[:\s]+(\d+\.?\d*)', last_test)
+            las_match = re.search(r'LAS[:\s]+(\d+\.?\d*)', last_test)
+            ucm_match = re.search(r'UCM[:\s]+(\d+\.?\d*)', last_test)
+            lcm_match = re.search(r'LCM[:\s]+(\d+\.?\d*)', last_test)
+            loss_match = re.search(r'Loss[:\s]+(\d+\.?\d*)', last_test)
+
+            if uas_match:
+                results['UAS'] = float(uas_match.group(1))
+            if las_match:
+                results['LAS'] = float(las_match.group(1))
+            if ucm_match:
+                results['UCM'] = float(ucm_match.group(1))
+            if lcm_match:
+                results['LCM'] = float(lcm_match.group(1))
+            if loss_match:
+                results['loss'] = float(loss_match.group(1))
+
+        logger.info(f"Parsed test results: {results}")
+        return results
                 
     
-        
-    def evaluate(
-        self,
-        test_data_path: str,
-        save_predictions: bool = False,
-        output_path: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """
-        Evaluate the model on test data.
-
-        Args:
-            test_data_path: Path to test data in CoNLL-U format
-            save_predictions: Whether to save predictions to file
-            output_path: Path to save predictions (if save_predictions=True)
-
-        Returns:
-            Dictionary containing evaluation metrics:
-                - loss: Evaluation loss
-                - UAS: Unlabeled Attachment Score
-                - LAS: Labeled Attachment Score
-                - UCM: Unlabeled Correct Matches percentage
-                - LCM: Labeled Correct Matches percentage
-        """
-        if self.parser is None:
-            self.load_model()
-
-        test_path = Path(test_data_path)
-        if not test_path.exists():
-            raise FileNotFoundError(f"Test data not found: {test_data_path}")
-
-        logger.info(f"Evaluating on: {test_data_path}")
-
-        try:
-            # Evaluate on test data
-            loss, metric = self.parser.evaluate(str(test_path), verbose=True)
-
-            # Extract metrics
-            results = {
-                "loss": float(loss),
-                "UAS": float(metric.uas),
-                "LAS": float(metric.las),
-                "UCM": float(metric.ucm),
-                "LCM": float(metric.lcm),
-            }
-
-            logger.info("Evaluation Results:")
-            logger.info(f"  Loss: {results['loss']:.4f}")
-            logger.info(f"  UAS (Unlabeled Attachment Score): {results['UAS']:.2f}%")
-            logger.info(f"  LAS (Labeled Attachment Score): {results['LAS']:.2f}%")
-            logger.info(f"  UCM (Unlabeled Correct Matches): {results['UCM']:.2f}%")
-            logger.info(f"  LCM (Labeled Correct Matches): {results['LCM']:.2f}%")
-
-            # Save predictions if requested
-            if save_predictions:
-                if output_path is None:
-                    output_path = str(
-                        test_path.parent / f"{test_path.stem}_predictions.conllu"
-                    )
-
-                logger.info(f"Generating predictions and saving to: {output_path}")
-                dataset = self.parser.predict(str(test_path), verbose=True)
-                dataset.save(output_path)
-                logger.info(f"Predictions saved to: {output_path}")
-                results["predictions_path"] = output_path
-
-            return results
-
-        except Exception as e:
-            logger.error(f"Evaluation failed: {e}")
-            raise
-
-
 @Step.register("microbert2.microbert.eval.dependency_parsing::evaluate_dependency_parsing")
 class EvaluateDependencyParsing(Step):
     """
@@ -192,18 +135,6 @@ class EvaluateDependencyParsing(Step):
 
     This step evaluates a dependency parsing model on test data and returns
     evaluation metrics including UAS, LAS, and loss.
-
-    Note:
-        Device is automatically detected - GPU (cuda:0) if available, otherwise CPU
-
-    Example config (.jsonnet):
-        {
-            type: "microbert2.microbert.eval.dependency_parsing::evaluate_dependency_parsing",
-            model_path: "en_ewt-electra",
-            test_data_path: "../slate/mlt/mt_mudt-ud-test.conllu",
-            save_predictions: true,
-            save_path: "./models/dep_parser"
-        }
     """
 
     DETERMINISTIC = True
@@ -213,12 +144,9 @@ class EvaluateDependencyParsing(Step):
         self,
         model_path: str,
         test_data_path: str,
-        save_predictions: bool = False,
-        predictions_output: Optional[str] = None,
         save_path: str = "",
         dev_data_path: str = "",
         train_data_path: str = "",
-        save_results_json: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Evaluate a dependency parsing model on test data.
@@ -246,36 +174,7 @@ class EvaluateDependencyParsing(Step):
         # Initialize evaluator (device is auto-detected)
         evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path, train_data_path=train_data_path, dev_data_path=dev_data_path,test_data_path=test_data_path)
         # Train the model  & Test the model
-        evaluator.train(save_path=save_path, model_path=model_path, train_data_path=train_data_path, dev_data_path=dev_data_path, test_data_path=test_data_path)
-        # Run evaluation
-        #results = evaluator.evaluate(
-        #    test_data_path=test_data_path,
-        #    save_predictions=save_predictions,
-        #    output_path=predictions_output,
-        #)
+        results = evaluator.train(save_path=save_path, model_path=model_path, train_data_path=train_data_path, dev_data_path=dev_data_path, test_data_path=test_data_path)
 
-        # Save results to JSON if requested
-        #if save_results_json:
-        #    with open(save_results_json, "w") as f:
-        #        json.dump(results, f, indent=2)
-        #    self.logger.info(f"Results saved to: {save_results_json}")
-
-        # Print summary
-        """
-        self.logger.info("\n" + "=" * 60)
-        self.logger.info("DEPENDENCY PARSING EVALUATION SUMMARY")
-        self.logger.info("=" * 60)
-        self.logger.info(f"Model: {model_path}")
-        self.logger.info(f"Test Data: {test_data_path}")
-        self.logger.info(f"Device: {evaluator.device}")
-        self.logger.info("-" * 60)
-        self.logger.info(f"Loss: {results['loss']:.4f}")
-        self.logger.info(f"UAS (Unlabeled Attachment Score): {results['UAS']:.2f}%")
-        self.logger.info(f"LAS (Labeled Attachment Score): {results['LAS']:.2f}%")
-        self.logger.info(f"UCM (Unlabeled Correct Matches): {results['UCM']:.2f}%")
-        self.logger.info(f"LCM (Labeled Correct Matches): {results['LCM']:.2f}%")
-        self.logger.info("=" * 60)
-
+        self.logger.info(f"Best test results: {results}")
         return results
-        """
-        return {}

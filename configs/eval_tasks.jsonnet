@@ -25,9 +25,6 @@ local results_json = "dependency_parsing_results.json";
             train_data_path: train_conllu_path,
             dev_data_path: dev_conllu_path,
             test_data_path: test_conllu_path,
-            save_predictions: save_predictions,
-            predictions_output: predictions_output,
-            save_results_json: results_json,
         }
     }
 }
