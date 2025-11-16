@@ -58,6 +58,7 @@ class DependencyParsingEvaluator:
         # Use -c to run inline Python that adds safe globals before running diaparser
         python_code = f"""
 import torch
+import io
 from diaparser.utils.config import Config
 from diaparser.utils.field import Field, BertField
 from diaparser.utils.vocab import Vocab
@@ -72,7 +73,8 @@ torch.serialization.add_safe_globals([
     CoNLL,
     Parser,
     BiaffineDependencyParser,
-    getattr
+    getattr,
+    io.open
 ])
 from diaparser.cmds.biaffine_dependency import main
 import sys
