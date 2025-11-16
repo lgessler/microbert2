@@ -56,3 +56,24 @@ class MB2Engine(TorchTrainingEngine):
                 },
             ]
             return optimizer.construct(params=params)
+
+    def step(self, metrics, epoch) -> None:
+        # Unscale gradients.
+        if self.grad_scaler is not None:
+            self.grad_scaler.unscale_(self.optimizer)
+
+        # Clip gradients.
+        self.clip_grad_norm()
+
+        # Take optimizer step.
+        if self.grad_scaler is not None:
+            self.grad_scaler.step(self.optimizer)
+            self.grad_scaler.update()
+        else:
+            self.optimizer.step()
+
+        # Adjust LR schedule.
+        if self.lr_scheduler is not None and isinstance(self.lr_scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            self.lr_scheduler.step(metrics, epoch)
+        elif self.lr_scheduler is not None:
+            self.lr_scheduler.step()
