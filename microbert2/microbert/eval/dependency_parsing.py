@@ -71,7 +71,8 @@ torch.serialization.add_safe_globals([
     Vocab,
     CoNLL,
     Parser,
-    BiaffineDependencyParser
+    BiaffineDependencyParser,
+    getattr
 ])
 from diaparser.cmds.biaffine_dependency import main
 import sys
