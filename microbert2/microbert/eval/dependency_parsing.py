@@ -82,6 +82,7 @@ class DependencyParsingEvaluator:
                 max_len=512,  # Maximum sequence length for tokenization
                 embed=None,  # No additional word embeddings when using BERT
                 partial=False,  # Trees are fully annotated (not partial)
+                build=True,  # Force rebuild the model
             )
 
             # Step 2: Train the parser
