@@ -79,6 +79,7 @@ class DependencyParsingEvaluator:
                 bert=model_path,
                 device=self.device,
                 feat='bert',  # Use BERT features, not char features
+                max_len=512,  # Maximum sequence length for tokenization
             )
 
             # Step 2: Train the parser
