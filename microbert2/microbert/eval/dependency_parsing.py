@@ -55,7 +55,7 @@ class DependencyParsingEvaluator:
         # Create save directory if it doesn't exist (must be done before training)
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         try:
-            from diaparser.parsers import Parser
+            from diaparser.parsers.biaffine_dependency import BiaffineDependencyParser
         except ImportError:
             raise ImportError(
                 "diaparser is not installed. Install it with: pip install -U diaparser"
@@ -70,7 +70,7 @@ class DependencyParsingEvaluator:
         try:
             # Build parser first, then train
             # Step 1: Build the parser with configuration
-            parser = Parser.build(
+            parser = BiaffineDependencyParser.build(
                 path=f"{save_path}/model",
                 train=train_data_path,
                 dev=dev_data_path,
