@@ -94,6 +94,8 @@ class DependencyParsingEvaluator:
                 batch_size=5000,
                 partial=False,  # Trees are fully annotated (not partial)
                 tree=True,  # Enforce tree constraints during parsing
+                proj=False,  # Don't enforce projectivity (allows non-projective trees)
+                punct=False,  # Don't ignore punctuation during evaluation
             )
 
             logger.info("Model trained and saved successfully")
