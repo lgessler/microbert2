@@ -89,6 +89,7 @@ class DependencyParsingEvaluator:
                 dev=dev_data_path,
                 test=test_data_path,
                 batch_size=5000,
+                partial=False,  # Trees are fully annotated (not partial)
             )
 
             logger.info("Model trained and saved successfully")
