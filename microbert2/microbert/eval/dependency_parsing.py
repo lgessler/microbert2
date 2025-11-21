@@ -27,7 +27,7 @@ class DependencyParsingEvaluator:
         self.model_path = model_path
         self.save_path = save_path
         self.train_data_path = train_data_path
-        self.tetst_data_path = test_data_path
+        self.test_data_path = test_data_path
         self.dev_data_path = dev_data_path
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
         logger.info(f"Using device: {self.device}")
@@ -68,8 +68,9 @@ class DependencyParsingEvaluator:
         logger.info(f"  Test data: {test_data_path}")
 
         try:
-            # Train using diaparser API directly
-            parser = Parser.train(
+            # Build parser first, then train
+            # Step 1: Build the parser with configuration
+            parser = Parser.build(
                 path=f"{save_path}/model",
                 train=train_data_path,
                 dev=dev_data_path,
@@ -77,13 +78,19 @@ class DependencyParsingEvaluator:
                 encoder='bert',
                 bert=model_path,
                 device=self.device,
-                batch_size=True,  # -b flag for batch size
+            )
+
+            # Step 2: Train the parser
+            parser.train(
+                train=train_data_path,
+                dev=dev_data_path,
+                test=test_data_path,
+                batch_size=5000,
             )
 
             logger.info("Model trained and saved successfully")
 
-            # The parser.train() method returns the trained parser
-            # We need to evaluate on test set to get metrics
+            # Evaluate on test set to get metrics
             logger.info("Evaluating on test set...")
             test_results = parser.evaluate(test_data_path, batch_size=5000)
 
