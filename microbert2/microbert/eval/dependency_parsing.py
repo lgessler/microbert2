@@ -3,8 +3,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 import torch
-import subprocess
-import re
+import io
 from tango import Step
 
 logger = logging.getLogger(__name__)
@@ -56,78 +55,52 @@ class DependencyParsingEvaluator:
         # Create save directory if it doesn't exist (must be done before training)
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
 
-        # Use wrapper module that adds safe globals for PyTorch 2.6+ compatibility
-        command = [
-            "python", "-m", "microbert2.microbert.eval.diaparser_wrapper",
-            "train",
-            "-b",
-            "-d", "0",
-            "-p", f"{save_path}/model",
-            "-f", "bert",
-            "--bert", model_path,
-            "--train", train_data_path,
-            "--dev", dev_data_path,
-            "--test", test_data_path
-        ]
-        logger.info(f"Training model with command: {' '.join(command)}")
-        try:
-            result = subprocess.run(command, check=True, capture_output=True, text=True)
+        logger.info(f"Training model with DiaParser")
+        logger.info(f"  Model path: {model_path}")
+        logger.info(f"  Save path: {save_path}/model")
+        logger.info(f"  Train data: {train_data_path}")
+        logger.info(f"  Dev data: {dev_data_path}")
+        logger.info(f"  Test data: {test_data_path}")
 
-            # Save training logs
-            log_file = f"{save_path}/training.log"
-            with open(log_file, 'w') as f:
-                f.write("STDOUT:\n")
-                f.write(result.stdout)
-                f.write("\n\nSTDERR:\n")
-                f.write(result.stderr)
-            logger.info(f"Training logs saved to: {log_file}")
+        try:
+            # Train using diaparser API directly
+            parser = Parser.train(
+                path=f"{save_path}/model",
+                train=train_data_path,
+                dev=dev_data_path,
+                test=test_data_path,
+                encoder='bert',
+                bert=model_path,
+                device=self.device,
+                batch_size=True,  # -b flag for batch size
+            )
+
             logger.info("Model trained and saved successfully")
 
-            # Parse best test scores from output
-            results = self._parse_test_scores(result.stderr + result.stdout)
+            # The parser.train() method returns the trained parser
+            # We need to evaluate on test set to get metrics
+            logger.info("Evaluating on test set...")
+            test_results = parser.evaluate(test_data_path, batch_size=5000)
+
+            # Extract metrics from test results
+            results = {
+                'loss': test_results['loss'] if 'loss' in test_results else None,
+                'UAS': test_results['UAS'] if 'UAS' in test_results else None,
+                'LAS': test_results['LAS'] if 'LAS' in test_results else None,
+                'UCM': test_results['UCM'] if 'UCM' in test_results else None,
+                'LCM': test_results['LCM'] if 'LCM' in test_results else None,
+            }
+
+            # Remove None values
+            results = {k: v for k, v in results.items() if v is not None}
+
+            logger.info(f"Test results: {results}")
             return results
 
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             logger.error(f"Training failed: {e}")
-            logger.error(f"STDOUT: {e.stdout}")
-            logger.error(f"STDERR: {e.stderr}")
             raise
 
-    def _parse_test_scores(self, output: str) -> Dict[str, Any]:
-        """Parse test scores from DiaParser training output."""
-        results = {}
-
-
-        # Look for test metrics
-        test_pattern = r'test.*?(?:UAS|LAS).*'
-        test_matches = re.findall(test_pattern, output, re.IGNORECASE)
-
-        if test_matches:
-            # Get the last test result (best model evaluation)
-            last_test = test_matches[-1]
-
-            # Extract individual metrics
-            uas_match = re.search(r'UAS[:\s]+(\d+\.?\d*)', last_test)
-            las_match = re.search(r'LAS[:\s]+(\d+\.?\d*)', last_test)
-            ucm_match = re.search(r'UCM[:\s]+(\d+\.?\d*)', last_test)
-            lcm_match = re.search(r'LCM[:\s]+(\d+\.?\d*)', last_test)
-            loss_match = re.search(r'Loss[:\s]+(\d+\.?\d*)', last_test)
-
-            if uas_match:
-                results['UAS'] = float(uas_match.group(1))
-            if las_match:
-                results['LAS'] = float(las_match.group(1))
-            if ucm_match:
-                results['UCM'] = float(ucm_match.group(1))
-            if lcm_match:
-                results['LCM'] = float(lcm_match.group(1))
-            if loss_match:
-                results['loss'] = float(loss_match.group(1))
-
-        logger.info(f"Parsed test results: {results}")
-        return results
-                
-    
 @Step.register("microbert2.microbert.eval.dependency_parsing::evaluate_dependency_parsing")
 class EvaluateDependencyParsing(Step):
     """
@@ -167,6 +140,25 @@ class EvaluateDependencyParsing(Step):
         Note:
             Device is automatically selected - GPU if available, otherwise CPU
         """
+        # Apply PyTorch 2.6+ compatibility patch for diaparser
+        from diaparser.utils.config import Config
+        from diaparser.utils.field import Field, BertField
+        from diaparser.utils.vocab import Vocab
+        from diaparser.utils.transform import CoNLL
+        from diaparser.parsers import Parser
+        from diaparser.parsers.biaffine_dependency import BiaffineDependencyParser
+        # Add diaparser classes to PyTorch safe globals for weights_only loading
+        torch.serialization.add_safe_globals([
+            Config,
+            Field,
+            BertField,
+            Vocab,
+            CoNLL,
+            Parser,
+            BiaffineDependencyParser,
+            getattr,
+            io.open
+        ])
         self.logger.info("Starting dependency parsing evaluation")
         self.logger.info(f"Model: {model_path}")
         self.logger.info(f"Test data: {test_data_path}")
