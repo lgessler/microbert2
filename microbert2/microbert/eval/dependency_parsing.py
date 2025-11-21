@@ -54,7 +54,12 @@ class DependencyParsingEvaluator:
         """Train model and return best test scores."""
         # Create save directory if it doesn't exist (must be done before training)
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
-
+        try:
+            from diaparser.parsers import Parser
+        except ImportError:
+            raise ImportError(
+                "diaparser is not installed. Install it with: pip install -U diaparser"
+            )
         logger.info(f"Training model with DiaParser")
         logger.info(f"  Model path: {model_path}")
         logger.info(f"  Save path: {save_path}/model")
