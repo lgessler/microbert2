@@ -78,6 +78,7 @@ class DependencyParsingEvaluator:
                 encoder='bert',
                 bert=model_path,
                 device=self.device,
+                feat='bert',  # Use BERT features, not char features
             )
 
             # Step 2: Train the parser
