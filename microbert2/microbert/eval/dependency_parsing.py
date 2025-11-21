@@ -81,6 +81,7 @@ class DependencyParsingEvaluator:
                 feat='bert',  # Use BERT features, not char features
                 max_len=512,  # Maximum sequence length for tokenization
                 embed=None,  # No additional word embeddings when using BERT
+                partial=False,  # Trees are fully annotated (not partial)
             )
 
             # Step 2: Train the parser
