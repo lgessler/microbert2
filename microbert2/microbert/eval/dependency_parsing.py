@@ -83,6 +83,7 @@ class DependencyParsingEvaluator:
                 embed=None,  # No additional word embeddings when using BERT
                 partial=False,  # Trees are fully annotated (not partial)
                 tree=True,  # Enforce tree constraints during parsing
+                proj=False,  # Don't enforce projectivity (allows non-projective trees)
                 build=True,  # Force rebuild the model
             )
 
