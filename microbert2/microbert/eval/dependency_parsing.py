@@ -50,7 +50,7 @@ class DependencyParsingEvaluator:
             logger.error(f"Failed to load model: {e}")
             raise
     
-    def train(self, save_path: str, model_path: str, train_data_path: str, dev_data_path: str, test_data_path: str) -> Dict[str, Any]:
+    def train(self, save_path: str, model_path: str, train_data_path: str, dev_data_path: str, test_data_path: str, predictions_output: Optional[str] = None, results_json: Optional[str] = None) -> Dict[str, Any]:
         """Train model and return best test scores."""
         # Create save directory if it doesn't exist (must be done before training)
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
@@ -78,7 +78,7 @@ class DependencyParsingEvaluator:
                 encoder='bert',
                 bert=model_path,
                 device=self.device,
-                feat='bert',  # Use BERT features, not char features
+                feat='bert',  # Use BERT features
                 max_len=512,  # Maximum sequence length for tokenization
                 embed=None,  # No additional word embeddings when using BERT
                 partial=False,  # Trees are fully annotated (not partial)
@@ -119,6 +119,26 @@ class DependencyParsingEvaluator:
             results = {k: v for k, v in results.items() if v is not None}
 
             logger.info(f"Test results: {results}")
+
+            # Save predictions if output path is provided
+            if predictions_output:
+                logger.info(f"Saving predictions to: {predictions_output}")
+                # Create output directory if it doesn't exist
+                Path(predictions_output).parent.mkdir(parents=True, exist_ok=True)
+                # Predict and save to file
+                parser.predict(test_data_path, pred=predictions_output, batch_size=5000)
+                logger.info(f"Predictions saved to {predictions_output}")
+
+            # Save results to JSON if path is provided
+            if results_json:
+                logger.info(f"Saving results to: {results_json}")
+                # Create output directory if it doesn't exist
+                Path(results_json).parent.mkdir(parents=True, exist_ok=True)
+                # Save results as JSON
+                with open(results_json, 'w') as f:
+                    json.dump(results, f, indent=2)
+                logger.info(f"Results saved to {results_json}")
+
             return results
 
         except Exception as e:
@@ -144,6 +164,8 @@ class EvaluateDependencyParsing(Step):
         save_path: str = "",
         dev_data_path: str = "",
         train_data_path: str = "",
+        predictions_output: Optional[str] = None,
+        results_json: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Evaluate a dependency parsing model on test data.
@@ -152,11 +174,11 @@ class EvaluateDependencyParsing(Step):
             model_path: Path to model or name of pretrained model
                        (e.g., 'en_ewt-electra', 'biaffine-dep-en')
             test_data_path: Path to test data in CoNLL-U format
-            save_predictions: Whether to save model predictions to file
-            predictions_output: Path to save predictions
-                              (default: <test_data_stem>_predictions.conllu)
             save_path: Path to save the trained model
-            save_results_json: Optional path to save results as JSON
+            dev_data_path: Path to development data in CoNLL-U format
+            train_data_path: Path to training data in CoNLL-U format
+            predictions_output: Optional path to save predictions in CoNLL-U format
+            results_json: Optional path to save results as JSON
 
         Returns:
             Dictionary containing evaluation metrics (loss, UAS, LAS, UCM, LCM)
@@ -190,7 +212,7 @@ class EvaluateDependencyParsing(Step):
         # Initialize evaluator (device is auto-detected)
         evaluator = DependencyParsingEvaluator(model_path=model_path, save_path=save_path, train_data_path=train_data_path, dev_data_path=dev_data_path,test_data_path=test_data_path)
         # Train the model  & Test the model
-        results = evaluator.train(save_path=save_path, model_path=model_path, train_data_path=train_data_path, dev_data_path=dev_data_path, test_data_path=test_data_path)
+        results = evaluator.train(save_path=save_path, model_path=model_path, train_data_path=train_data_path, dev_data_path=dev_data_path, test_data_path=test_data_path, predictions_output=predictions_output, results_json=results_json)
 
         self.logger.info(f"Best test results: {results}")
         return results

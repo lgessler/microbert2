@@ -1,4 +1,3 @@
-
 // Data ---------------------------------------------------------------------------
 // Using Coptic data as an example - replace with your own data paths
 local train_conllu_path = "data/cop/cop_scriptorium-ud-train.conllu";
