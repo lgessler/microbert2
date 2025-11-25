@@ -1,3 +1,4 @@
+from html import parser
 import json
 import logging
 from pathlib import Path
@@ -132,7 +133,7 @@ class DependencyParsingEvaluator:
                 # Create output directory if it doesn't exist
                 Path(predictions_output).parent.mkdir(parents=True, exist_ok=True)
                 # Predict and save to file
-                parser.predict(test_data_path, pred=predictions_output, batch_size=5000)
+                parser.predict(data=test_data_path, pred=predictions_output, batch_size=5000, text=None)
                 logger.info(f"Predictions saved to {predictions_output}")
 
             # Save results to JSON if path is provided
