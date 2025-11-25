@@ -111,7 +111,7 @@ class DependencyParsingEvaluator:
             # Evaluate on test set to get metrics
             logger.info("Evaluating on test set...")
             test_results = parser.evaluate(test_data_path, batch_size=5000)
-
+            logger.info(test_results)
             # Extract metrics from test results
             results = {
                 'loss': test_results['loss'] if 'loss' in test_results else None,
