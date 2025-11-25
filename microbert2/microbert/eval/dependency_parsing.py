@@ -68,6 +68,12 @@ class DependencyParsingEvaluator:
         logger.info(f"  Test data: {test_data_path}")
 
         try:
+            # Monkey-patch transformers tokenizer for compatibility with diaparser
+            # diaparser expects tokenizer.max_len but newer transformers use model_max_length
+            from transformers import PreTrainedTokenizerBase
+            if not hasattr(PreTrainedTokenizerBase, 'max_len'):
+                PreTrainedTokenizerBase.max_len = property(lambda self: self.model_max_length)
+
             # Build parser first, then train
             # Step 1: Build the parser with configuration
             parser = BiaffineDependencyParser.build(
