@@ -80,7 +80,7 @@ local lr_scheduler = {
     type: "transformers::reduce_lr_on_plateau",
     factor: 0.8,
     patience: 5,
-    min_lr=1e-5,
+    min_lr: 1e-5,
 };
 
 // When True, attempt to scale loss contribution from each task using learnable parameters
