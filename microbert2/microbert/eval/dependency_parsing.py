@@ -114,13 +114,22 @@ class DependencyParsingEvaluator:
             test_results = parser.evaluate(test_data_path, batch_size=5000)
             logger.info(test_results)
             # Extract metrics from test results
-            results = {
-                'loss': test_results['loss'] if 'loss' in test_results else None,
-                'UAS': test_results['UAS'] if 'UAS' in test_results else None,
-                'LAS': test_results['LAS'] if 'LAS' in test_results else None,
-                'UCM': test_results['UCM'] if 'UCM' in test_results else None,
-                'LCM': test_results['LCM'] if 'LCM' in test_results else None,
-            }
+            # DiaParser's evaluate() returns a tuple: (loss, metric_object)
+            # The metric_object has attributes: UAS, LAS, UCM, LCM
+            if isinstance(test_results, tuple) and len(test_results) >= 2:
+                loss, metrics = test_results[0], test_results[1]
+                results = {
+                    'loss': float(loss),
+                    'UAS': float(metrics.UAS) if hasattr(metrics, 'UAS') else None,
+                    'LAS': float(metrics.LAS) if hasattr(metrics, 'LAS') else None,
+                    'UCM': float(metrics.UCM) if hasattr(metrics, 'UCM') else None,
+                    'LCM': float(metrics.LCM) if hasattr(metrics, 'LCM') else None,
+                }
+            else:
+                # Fallback if structure is different
+                results = {
+                    'raw_results': str(test_results)
+                }
 
             # Remove None values
             results = {k: v for k, v in results.items() if v is not None}
