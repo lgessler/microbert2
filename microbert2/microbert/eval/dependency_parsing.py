@@ -96,7 +96,8 @@ class DependencyParsingEvaluator:
             )
 
             # Step 2: Train the parser
-            parser.train(
+            # train() returns the best test results as a tuple: (loss, metric_object)
+            test_results = parser.train(
                 train=train_data_path,
                 dev=dev_data_path,
                 test=test_data_path,
@@ -106,15 +107,12 @@ class DependencyParsingEvaluator:
                 proj=False,  # Don't enforce projectivity (allows non-projective trees)
                 punct=False,  # Don't ignore punctuation during evaluation
             )
-
+            logger.info(f"Test results type: {type(test_results)}")
+            logger.info(f"Test results: {test_results}")
             logger.info("Model trained and saved successfully")
 
-            # Evaluate on test set to get metrics
-            logger.info("Evaluating on test set...")
-            test_results = parser.evaluate(test_data_path, batch_size=5000)
-            logger.info(test_results)
-            # Extract metrics from test results
-            # DiaParser's evaluate() returns a tuple: (loss, metric_object)
+            # Extract metrics from test results returned by train()
+            # DiaParser's train() returns the best test results as a tuple: (loss, metric_object)
             # The metric_object has attributes: UAS, LAS, UCM, LCM
             if isinstance(test_results, tuple) and len(test_results) >= 2:
                 loss, metrics = test_results[0], test_results[1]
@@ -134,7 +132,7 @@ class DependencyParsingEvaluator:
             # Remove None values
             results = {k: v for k, v in results.items() if v is not None}
 
-            logger.info(f"Test results: {results}")
+            logger.info(f"Best test results from training: {results}")
 
             # Save predictions if output path is provided
             if predictions_output:

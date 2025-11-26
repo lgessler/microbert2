@@ -14,6 +14,7 @@ from torchmetrics import Accuracy
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from transformers.modeling_outputs import BaseModelOutput
 from torchmetrics import Perplexity
+from peft import LoraConfig, get_peft_model
 
 from microbert2.common import pool_embeddings
 from microbert2.microbert.tasks.task import MicroBERTTask
@@ -30,6 +31,10 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         use_layer_mix: bool = False,
         freeze_decoder: bool = True,
         train_last_k_decoder_layers: int = 0,
+        use_lora: bool = False,
+        lora_r: int = 8,
+        lora_alpha: int = 16,
+        lora_dropout: float = 0.1,
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
@@ -52,8 +57,24 @@ class MBARTMTHead(torch.nn.Module, FromParams):
             self.proj = torch.nn.Linear(embedding_dim, d_model)
             logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
 
-        # Decoder layer freezing
-        if freeze_decoder and train_last_k_decoder_layers == 0:
+        # Decoder layer freezing and LoRA
+        if use_lora:
+            # First freeze the entire decoder
+            for p in self.mbart.model.decoder.parameters():
+                p.requires_grad = False
+
+            # Apply LoRA to the decoder
+            lora_config = LoraConfig(
+                r=lora_r,
+                lora_alpha=lora_alpha,
+                target_modules=["q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2"],
+                lora_dropout=lora_dropout,
+                bias="none",
+                task_type=None,  # We're applying to a submodule, not the full model
+            )
+            self.mbart.model.decoder = get_peft_model(self.mbart.model.decoder, lora_config)
+            logger.info(f"LoRA applied to decoder: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
+        elif freeze_decoder and train_last_k_decoder_layers == 0:
             for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = False
             logger.info("Decoder frozen")
