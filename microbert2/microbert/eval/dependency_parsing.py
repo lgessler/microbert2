@@ -135,15 +135,16 @@ class DependencyParsingEvaluator:
             }
 
             # Try to extract metrics - they might be attributes or dict items
-            for metric_name in ['UAS', 'LAS', 'UCM', 'LCM']:
+            # Note: diaparser uses lowercase attribute names (uas, las, ucm, lcm)
+            for metric_name in ['uas', 'las', 'ucm', 'lcm']:
                 try:
                     if hasattr(test_metrics, metric_name):
                         value = getattr(test_metrics, metric_name)
-                        results[metric_name] = float(value)
+                        results[metric_name.upper()] = float(value)
                         logger.info(f"Extracted {metric_name}: {value}")
                     elif isinstance(test_metrics, dict) and metric_name in test_metrics:
                         value = test_metrics[metric_name]
-                        results[metric_name] = float(value)
+                        results[metric_name.upper()] = float(value)
                         logger.info(f"Extracted {metric_name} from dict: {value}")
                 except Exception as e:
                     logger.warning(f"Could not extract {metric_name}: {e}")
