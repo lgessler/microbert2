@@ -96,8 +96,8 @@ class DependencyParsingEvaluator:
             )
 
             # Step 2: Train the parser
-            # train() returns the best test results as a tuple: (loss, metric_object)
-            test_results = parser.train(
+            # train() doesn't return results, it only prints them
+            parser.train(
                 train=train_data_path,
                 dev=dev_data_path,
                 test=test_data_path,
@@ -107,27 +107,31 @@ class DependencyParsingEvaluator:
                 proj=False,  # Don't enforce projectivity (allows non-projective trees)
                 punct=False,  # Don't ignore punctuation during evaluation
             )
-            logger.info(f"Test results type: {type(test_results)}")
-            logger.info(f"Test results: {test_results}")
             logger.info("Model trained and saved successfully")
 
-            # Extract metrics from test results returned by train()
-            # DiaParser's train() returns the best test results as a tuple: (loss, metric_object)
-            # The metric_object has attributes: UAS, LAS, UCM, LCM
-            if isinstance(test_results, tuple) and len(test_results) >= 2:
-                loss, metrics = test_results[0], test_results[1]
-                results = {
-                    'loss': float(loss),
-                    'UAS': float(metrics.UAS) if hasattr(metrics, 'UAS') else None,
-                    'LAS': float(metrics.LAS) if hasattr(metrics, 'LAS') else None,
-                    'UCM': float(metrics.UCM) if hasattr(metrics, 'UCM') else None,
-                    'LCM': float(metrics.LCM) if hasattr(metrics, 'LCM') else None,
-                }
-            else:
-                # Fallback if structure is different
-                results = {
-                    'raw_results': str(test_results)
-                }
+            # Step 3: Load the trained model and evaluate on test set to get metrics
+            logger.info("Loading trained model for evaluation")
+            parser = BiaffineDependencyParser.load(f"{save_path}/model", device=self.device, weights_only=False)
+
+            # Evaluate on test set
+            logger.info("Evaluating on test set")
+            test_loss, test_metrics = parser.evaluate(
+                data=test_data_path,
+                batch_size=5000,
+                partial=False,
+                tree=True,
+                proj=False,
+                punct=False,
+            )
+
+            # Extract metrics from evaluation results
+            results = {
+                'loss': float(test_loss),
+                'UAS': float(test_metrics.UAS) if hasattr(test_metrics, 'UAS') else None,
+                'LAS': float(test_metrics.LAS) if hasattr(test_metrics, 'LAS') else None,
+                'UCM': float(test_metrics.UCM) if hasattr(test_metrics, 'UCM') else None,
+                'LCM': float(test_metrics.LCM) if hasattr(test_metrics, 'LCM') else None,
+            }
 
             # Remove None values
             results = {k: v for k, v in results.items() if v is not None}
