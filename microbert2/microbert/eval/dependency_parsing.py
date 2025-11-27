@@ -125,16 +125,28 @@ class DependencyParsingEvaluator:
             )
 
             # Extract metrics from evaluation results
+            # Log the test_metrics object to debug what's available
+            logger.info(f"Test metrics object: {test_metrics}")
+            logger.info(f"Test metrics type: {type(test_metrics)}")
+            logger.info(f"Test metrics dir: {dir(test_metrics)}")
+
             results = {
                 'loss': float(test_loss),
-                'UAS': float(test_metrics.UAS) if hasattr(test_metrics, 'UAS') else None,
-                'LAS': float(test_metrics.LAS) if hasattr(test_metrics, 'LAS') else None,
-                'UCM': float(test_metrics.UCM) if hasattr(test_metrics, 'UCM') else None,
-                'LCM': float(test_metrics.LCM) if hasattr(test_metrics, 'LCM') else None,
             }
 
-            # Remove None values
-            results = {k: v for k, v in results.items() if v is not None}
+            # Try to extract metrics - they might be attributes or dict items
+            for metric_name in ['UAS', 'LAS', 'UCM', 'LCM']:
+                try:
+                    if hasattr(test_metrics, metric_name):
+                        value = getattr(test_metrics, metric_name)
+                        results[metric_name] = float(value)
+                        logger.info(f"Extracted {metric_name}: {value}")
+                    elif isinstance(test_metrics, dict) and metric_name in test_metrics:
+                        value = test_metrics[metric_name]
+                        results[metric_name] = float(value)
+                        logger.info(f"Extracted {metric_name} from dict: {value}")
+                except Exception as e:
+                    logger.warning(f"Could not extract {metric_name}: {e}")
 
             logger.info(f"Best test results from training: {results}")
 
