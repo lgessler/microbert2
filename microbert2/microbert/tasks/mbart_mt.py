@@ -62,7 +62,8 @@ class MBARTMTHead(torch.nn.Module, FromParams):
 
         # Now delete the encoder to save vram--we don't need it
         if use_lora:
-            del self.mbart.base_model.model.encoder
+            # When using LoRA, the model structure is: PeftModel.base_model.model (MBartForSeq2SeqLM).model (MBartModel).encoder
+            del self.mbart.base_model.model.model.encoder
         else:
             del self.mbart.model.encoder
 
