@@ -39,9 +39,32 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         super().__init__()
         self.use_layer_mix = use_layer_mix
 
-        # Load MBART and delete the encode to save vram--we don't need it
+        # Load MBART
         self.mbart = AutoModelForSeq2SeqLM.from_pretrained(mbart_model_name)
-        del self.mbart.model.encoder
+
+        # Apply LoRA before deleting encoder (if using LoRA)
+        if use_lora:
+            # First freeze the entire model
+            for p in self.mbart.parameters():
+                p.requires_grad = False
+
+            # Apply LoRA to the full model (targeting decoder modules only)
+            lora_config = LoraConfig(
+                r=lora_r,
+                lora_alpha=lora_alpha,
+                target_modules=["q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2"],
+                lora_dropout=lora_dropout,
+                bias="none",
+                task_type=TaskType.SEQ_2_SEQ_LM,
+            )
+            self.mbart = get_peft_model(self.mbart, lora_config)
+            logger.info(f"LoRA applied to model: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
+
+        # Now delete the encoder to save vram--we don't need it
+        if use_lora:
+            del self.mbart.base_model.model.encoder
+        else:
+            del self.mbart.model.encoder
 
         d_model = self.mbart.config.d_model
         self.pad_token_id = self.mbart.config.pad_token_id
@@ -56,24 +79,10 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         if embedding_dim != d_model:
             self.proj = torch.nn.Linear(embedding_dim, d_model)
             logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
-
-        # Decoder layer freezing and LoRA
+        
+        # When using LoRA, parameter freezing is handled by PEFT, so we skip manual freezing
         if use_lora:
-            # First freeze the entire decoder
-            for p in self.mbart.model.decoder.parameters():
-                p.requires_grad = False
-
-            # Apply LoRA to the decoder
-            lora_config = LoraConfig(
-                r=lora_r,
-                lora_alpha=lora_alpha,
-                target_modules=["q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2"], 
-                lora_dropout=lora_dropout,
-                bias="none",
-                task_type=TaskType.SEQ_2_SEQ_LM, 
-            )
-            self.mbart.model.decoder = get_peft_model(self.mbart.model.decoder, lora_config)
-            logger.info(f"LoRA applied to decoder: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
+            logger.info("Decoder parameter management handled by LoRA")
         elif freeze_decoder and train_last_k_decoder_layers == 0:
             for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = False

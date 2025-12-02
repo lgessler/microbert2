@@ -125,7 +125,6 @@ class DependencyParsingEvaluator:
             )
 
             # Extract metrics from evaluation results
-            # Log the test_metrics object to debug what's available
             logger.info(f"Test metrics object: {test_metrics}")
             logger.info(f"Test metrics type: {type(test_metrics)}")
             logger.info(f"Test metrics dir: {dir(test_metrics)}")
@@ -134,8 +133,7 @@ class DependencyParsingEvaluator:
                 'loss': float(test_loss),
             }
 
-            # Try to extract metrics - they might be attributes or dict items
-            # Note: diaparser uses lowercase attribute names (uas, las, ucm, lcm)
+            # Try to extract metrics
             for metric_name in ['uas', 'las', 'ucm', 'lcm']:
                 try:
                     if hasattr(test_metrics, metric_name):
