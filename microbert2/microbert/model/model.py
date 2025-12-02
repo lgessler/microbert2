@@ -207,3 +207,89 @@ class ResetMetricsCallback(TrainCallback):
             self.logger.info("Beginning validation pass, resetting metric state.")
             for task in self.model.tasks:
                 task.reset_metrics()
+
+
+@TrainCallback.register("microbert2.microbert.model.model::rclone_upload")
+class RcloneUploadCallback(TrainCallback):
+    """
+    Callback to upload model checkpoints and logs to a remote location using rclone.
+    """
+    def __init__(self, remote_path: Optional[str] = None, upload_logs: bool = True, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.remote_path = remote_path
+        self.upload_logs = upload_logs
+
+    def post_train_loop(self, step: int, epoch: int) -> None:
+        """
+        Upload model and logs after training completes.
+        """
+        if not self.remote_path:
+            self.logger.info("Rclone remote_path not specified, skipping upload.")
+            return
+
+        if not self.train_config.is_local_main_process:
+            # Only upload from the main process
+            return
+
+        import subprocess
+
+        # Get the work directory (contains checkpoints and logs)
+        work_dir = Path(self.train_config.work_dir)
+
+        self.logger.info(f"Starting rclone upload to {self.remote_path}")
+
+        try:
+            # Upload model checkpoints
+            model_files = list(work_dir.glob("checkpoint_state_step*"))
+            model_files.extend([
+                work_dir / "state",
+                work_dir / "best_state",
+                work_dir / "model.pt"
+            ])
+
+            # Filter to only existing files/directories
+            model_files = [f for f in model_files if f.exists()]
+
+            if model_files:
+                self.logger.info(f"Uploading {len(model_files)} checkpoint files/directories...")
+                for model_file in model_files:
+                    # Use rclone copy to upload each file/directory
+                    cmd = ["rclone", "copy", str(model_file), f"{self.remote_path}/{work_dir.name}/"]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+
+                    if result.returncode != 0:
+                        self.logger.error(f"Failed to upload {model_file}: {result.stderr}")
+                    else:
+                        self.logger.info(f"Uploaded {model_file.name}")
+
+            # Upload logs if requested
+            if self.upload_logs:
+                tensorboard_dir = work_dir / "tensorboard"
+                val_metrics_file = work_dir / "val_metrics.tsv"
+
+                if tensorboard_dir.exists():
+                    self.logger.info("Uploading tensorboard logs...")
+                    cmd = ["rclone", "copy", str(tensorboard_dir), f"{self.remote_path}/{work_dir.name}/tensorboard/", "--recursive"]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+
+                    if result.returncode != 0:
+                        self.logger.error(f"Failed to upload tensorboard logs: {result.stderr}")
+                    else:
+                        self.logger.info("Uploaded tensorboard logs")
+
+                if val_metrics_file.exists():
+                    self.logger.info("Uploading validation metrics...")
+                    cmd = ["rclone", "copy", str(val_metrics_file), f"{self.remote_path}/{work_dir.name}/"]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+
+                    if result.returncode != 0:
+                        self.logger.error(f"Failed to upload validation metrics: {result.stderr}")
+                    else:
+                        self.logger.info("Uploaded validation metrics")
+
+            self.logger.info(f"Rclone upload completed to {self.remote_path}")
+
+        except FileNotFoundError:
+            self.logger.error("rclone command not found. Please install rclone: https://rclone.org/install/")
+        except Exception as e:
+            self.logger.error(f"Error during rclone upload: {e}")

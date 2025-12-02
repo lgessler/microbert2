@@ -6,6 +6,12 @@ local language = "coptic";
 // configurations. Set to `""` if you don't want to bother.
 local experiment_name = "coptic_mlm";
 
+// Rclone Upload Configuration ---------------------------------------------------
+// Set this to your rclone remote path to enable automatic upload after training
+// Example: "myremote:path/to/models" where "myremote" is configured in rclone
+// Set to null to disable upload
+local rclone_remote_path = null;
+
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
 // in the quality of your tokenization, or if your language is not supported by Stanza.
@@ -136,7 +142,12 @@ local mt_task = {
         num_encoder_layers: num_layers,
         use_layer_mix: false,
         freeze_decoder: true,
-        train_last_k_decoder_layers: 0
+        train_last_k_decoder_layers: 0,
+        // LoRA configuration
+        use_lora: false,
+        lora_r: 8,
+        lora_alpha: 16,
+        lora_dropout: 0.1,
     },
     tgt_lang_code: "en_XX",
     src_lang_code: "ar_AR",
@@ -167,7 +178,7 @@ local training_engine = {
     optimizer: optimizer,
     lr_scheduler: lr_scheduler,
     amp: false,
-    max_grad_norm: 1.0,
+    max_grad_norm: 10,
 };
 
 local collate_fn = {
@@ -251,7 +262,12 @@ local val_dataloader = {
                     path: model_path,
                     model_attr: "encoder.encoder"
                 },
-                {type: "microbert2.microbert.model.model::reset_metrics"}
+                {type: "microbert2.microbert.model.model::reset_metrics"},
+                {
+                    type: "microbert2.microbert.model.model::rclone_upload",
+                    remote_path: rclone_remote_path,
+                    upload_logs: true
+                }
             ],
         },
         //final_metrics: {

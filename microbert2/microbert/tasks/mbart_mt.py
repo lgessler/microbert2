@@ -14,7 +14,7 @@ from torchmetrics import Accuracy
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from transformers.modeling_outputs import BaseModelOutput
 from torchmetrics import Perplexity
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, get_peft_model, TaskType
 
 from microbert2.common import pool_embeddings
 from microbert2.microbert.tasks.task import MicroBERTTask
@@ -67,10 +67,10 @@ class MBARTMTHead(torch.nn.Module, FromParams):
             lora_config = LoraConfig(
                 r=lora_r,
                 lora_alpha=lora_alpha,
-                target_modules=["q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2"],
+                target_modules=["q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2"], 
                 lora_dropout=lora_dropout,
                 bias="none",
-                task_type=None,  # We're applying to a submodule, not the full model
+                task_type=TaskType.SEQ_2_SEQ_LM, 
             )
             self.mbart.model.decoder = get_peft_model(self.mbart.model.decoder, lora_config)
             logger.info(f"LoRA applied to decoder: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
