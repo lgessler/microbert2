@@ -171,6 +171,9 @@ class MicroBERTModel(Model):
 
 @TrainCallback.register("microbert2.microbert.model.model::write_model")
 class WriteModelCallback(TrainCallback):
+    # Class variable to store the last saved model path for other callbacks to access
+    last_saved_model_path: Optional[Path] = None
+
     def __init__(self, path: str, model_attr: Optional[str] = None, use_best: bool = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.path = path
@@ -191,6 +194,8 @@ class WriteModelCallback(TrainCallback):
 
         # Save in the HuggingFace format
         model.save_pretrained(self.path)
+        # Store the path for other callbacks (like RcloneUploadCallback)
+        WriteModelCallback.last_saved_model_path = Path(self.path)
         self.logger.info(f"Wrote model to {self.path}")
 
 
@@ -214,10 +219,12 @@ class RcloneUploadCallback(TrainCallback):
     """
     Callback to upload model checkpoints and logs to a remote location using rclone.
     """
-    def __init__(self, remote_path: Optional[str] = None, upload_logs: bool = True, *args, **kwargs):
+    def __init__(self, remote_path: Optional[str] = None, upload_logs: bool = True, slurm_output_dir: Optional[str] = None, slurm_job_name: Optional[str] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.remote_path = remote_path
         self.upload_logs = upload_logs
+        self.slurm_output_dir = slurm_output_dir
+        self.slurm_job_name = slurm_job_name
 
     def post_train_loop(self, step: int, epoch: int) -> None:
         """
@@ -235,47 +242,29 @@ class RcloneUploadCallback(TrainCallback):
 
         # Get the work directory (contains checkpoints and logs)
         work_dir = Path(self.train_config.work_dir)
-
+        self.logger.info(f"Work directory: {work_dir}")
         self.logger.info(f"Starting rclone upload to {self.remote_path}")
 
         try:
-            # Upload model checkpoints
-            model_files = list(work_dir.glob("checkpoint_state_step*"))
-            model_files.extend([
-                work_dir / "state",
-                work_dir / "best_state",
-                work_dir / "model.pt"
-            ])
+            # Upload the specific model that was just saved
+            # Check if WriteModelCallback saved a model during this run
+            if WriteModelCallback.last_saved_model_path and WriteModelCallback.last_saved_model_path.exists():
+                model_path = WriteModelCallback.last_saved_model_path
+                model_name = model_path.name
+                self.logger.info(f"Uploading model: {model_name}")
+                cmd = ["rclone", "copy", str(model_path), f"{self.remote_path}/models/{model_name}/", "--progress"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
 
-            # Filter to only existing files/directories
-            model_files = [f for f in model_files if f.exists()]
-
-            if model_files:
-                self.logger.info(f"Uploading {len(model_files)} checkpoint files/directories...")
-                for model_file in model_files:
-                    # Use rclone copy to upload each file/directory
-                    cmd = ["rclone", "copy", str(model_file), f"{self.remote_path}/{work_dir.name}/"]
-                    result = subprocess.run(cmd, capture_output=True, text=True)
-
-                    if result.returncode != 0:
-                        self.logger.error(f"Failed to upload {model_file}: {result.stderr}")
-                    else:
-                        self.logger.info(f"Uploaded {model_file.name}")
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to upload model: {result.stderr}")
+                else:
+                    self.logger.info(f"Uploaded model: {model_name}")
+            else:
+                self.logger.info("No model was saved during this run, skipping model upload.")
 
             # Upload logs if requested
             if self.upload_logs:
-                tensorboard_dir = work_dir / "tensorboard"
                 val_metrics_file = work_dir / "val_metrics.tsv"
-
-                if tensorboard_dir.exists():
-                    self.logger.info("Uploading tensorboard logs...")
-                    cmd = ["rclone", "copy", str(tensorboard_dir), f"{self.remote_path}/{work_dir.name}/tensorboard/", "--recursive"]
-                    result = subprocess.run(cmd, capture_output=True, text=True)
-
-                    if result.returncode != 0:
-                        self.logger.error(f"Failed to upload tensorboard logs: {result.stderr}")
-                    else:
-                        self.logger.info("Uploaded tensorboard logs")
 
                 if val_metrics_file.exists():
                     self.logger.info("Uploading validation metrics...")
@@ -286,6 +275,27 @@ class RcloneUploadCallback(TrainCallback):
                         self.logger.error(f"Failed to upload validation metrics: {result.stderr}")
                     else:
                         self.logger.info("Uploaded validation metrics")
+
+            # Upload SLURM output file if configured
+            if self.slurm_output_dir:
+                slurm_job_id = os.environ.get("SLURM_JOB_ID")
+                if slurm_job_id:
+                    # Use provided job name or default to 'microbert2'
+                    job_name = self.slurm_job_name or "microbert2"
+                    slurm_file = Path(self.slurm_output_dir) / f"{job_name}-{slurm_job_id}.output"
+                    if slurm_file.exists():
+                        self.logger.info(f"Uploading SLURM output file: {slurm_file.name}")
+                        cmd = ["rclone", "copy", str(slurm_file), f"{self.remote_path}/{work_dir.name}/"]
+                        result = subprocess.run(cmd, capture_output=True, text=True)
+
+                        if result.returncode != 0:
+                            self.logger.error(f"Failed to upload SLURM output: {result.stderr}")
+                        else:
+                            self.logger.info(f"Uploaded SLURM output: {slurm_file.name}")
+                    else:
+                        self.logger.warning(f"SLURM output file not found: {slurm_file}")
+                else:
+                    self.logger.info("SLURM_JOB_ID not found, skipping SLURM output upload")
 
             self.logger.info(f"Rclone upload completed to {self.remote_path}")
 
