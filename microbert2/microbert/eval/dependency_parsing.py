@@ -1,3 +1,4 @@
+from html import parser
 import json
 import logging
 from pathlib import Path
@@ -68,6 +69,12 @@ class DependencyParsingEvaluator:
         logger.info(f"  Test data: {test_data_path}")
 
         try:
+            # Monkey-patch transformers tokenizer for compatibility with diaparser
+            # diaparser expects tokenizer.max_len but newer transformers use model_max_length
+            from transformers import PreTrainedTokenizerBase
+            if not hasattr(PreTrainedTokenizerBase, 'max_len'):
+                PreTrainedTokenizerBase.max_len = property(lambda self: self.model_max_length)
+
             # Build parser first, then train
             # Step 1: Build the parser with configuration
             parser = BiaffineDependencyParser.build(
@@ -89,6 +96,7 @@ class DependencyParsingEvaluator:
             )
 
             # Step 2: Train the parser
+            # train() doesn't return results, it only prints them
             parser.train(
                 train=train_data_path,
                 dev=dev_data_path,
@@ -99,26 +107,47 @@ class DependencyParsingEvaluator:
                 proj=False,  # Don't enforce projectivity (allows non-projective trees)
                 punct=False,  # Don't ignore punctuation during evaluation
             )
-
             logger.info("Model trained and saved successfully")
 
-            # Evaluate on test set to get metrics
-            logger.info("Evaluating on test set...")
-            test_results = parser.evaluate(test_data_path, batch_size=5000)
+            # Step 3: Load the trained model and evaluate on test set to get metrics
+            logger.info("Loading trained model for evaluation")
+            parser = BiaffineDependencyParser.load(f"{save_path}/model", device=self.device, weights_only=False)
 
-            # Extract metrics from test results
+            # Evaluate on test set
+            logger.info("Evaluating on test set")
+            test_loss, test_metrics = parser.evaluate(
+                data=test_data_path,
+                batch_size=5000,
+                partial=False,
+                tree=True,
+                proj=False,
+                punct=False,
+            )
+
+            # Extract metrics from evaluation results
+            logger.info(f"Test metrics object: {test_metrics}")
+            logger.info(f"Test metrics type: {type(test_metrics)}")
+            logger.info(f"Test metrics dir: {dir(test_metrics)}")
+
             results = {
-                'loss': test_results['loss'] if 'loss' in test_results else None,
-                'UAS': test_results['UAS'] if 'UAS' in test_results else None,
-                'LAS': test_results['LAS'] if 'LAS' in test_results else None,
-                'UCM': test_results['UCM'] if 'UCM' in test_results else None,
-                'LCM': test_results['LCM'] if 'LCM' in test_results else None,
+                'loss': float(test_loss),
             }
 
-            # Remove None values
-            results = {k: v for k, v in results.items() if v is not None}
+            # Try to extract metrics
+            for metric_name in ['uas', 'las', 'ucm', 'lcm']:
+                try:
+                    if hasattr(test_metrics, metric_name):
+                        value = getattr(test_metrics, metric_name)
+                        results[metric_name.upper()] = float(value)
+                        logger.info(f"Extracted {metric_name}: {value}")
+                    elif isinstance(test_metrics, dict) and metric_name in test_metrics:
+                        value = test_metrics[metric_name]
+                        results[metric_name.upper()] = float(value)
+                        logger.info(f"Extracted {metric_name} from dict: {value}")
+                except Exception as e:
+                    logger.warning(f"Could not extract {metric_name}: {e}")
 
-            logger.info(f"Test results: {results}")
+            logger.info(f"Best test results from training: {results}")
 
             # Save predictions if output path is provided
             if predictions_output:
@@ -126,7 +155,7 @@ class DependencyParsingEvaluator:
                 # Create output directory if it doesn't exist
                 Path(predictions_output).parent.mkdir(parents=True, exist_ok=True)
                 # Predict and save to file
-                parser.predict(test_data_path, pred=predictions_output, batch_size=5000)
+                parser.predict(data=test_data_path, pred=predictions_output, batch_size=5000, text=None)
                 logger.info(f"Predictions saved to {predictions_output}")
 
             # Save results to JSON if path is provided

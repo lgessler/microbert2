@@ -14,6 +14,7 @@ from torchmetrics import Accuracy
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from transformers.modeling_outputs import BaseModelOutput
 from torchmetrics import Perplexity
+from peft import LoraConfig, get_peft_model, TaskType
 
 from microbert2.common import pool_embeddings
 from microbert2.microbert.tasks.task import MicroBERTTask
@@ -30,13 +31,41 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         use_layer_mix: bool = False,
         freeze_decoder: bool = True,
         train_last_k_decoder_layers: int = 0,
+        use_lora: bool = False,
+        lora_r: int = 8,
+        lora_alpha: int = 16,
+        lora_dropout: float = 0.1,
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
 
-        # Load MBART and delete the encode to save vram--we don't need it
+        # Load MBART
         self.mbart = AutoModelForSeq2SeqLM.from_pretrained(mbart_model_name)
-        del self.mbart.model.encoder
+
+        # Apply LoRA before deleting encoder (if using LoRA)
+        if use_lora:
+            # First freeze the entire model
+            for p in self.mbart.parameters():
+                p.requires_grad = False
+
+            # Apply LoRA to the full model (targeting decoder modules only)
+            lora_config = LoraConfig(
+                r=lora_r,
+                lora_alpha=lora_alpha,
+                target_modules=["q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2"],
+                lora_dropout=lora_dropout,
+                bias="none",
+                task_type=TaskType.SEQ_2_SEQ_LM,
+            )
+            self.mbart = get_peft_model(self.mbart, lora_config)
+            logger.info(f"LoRA applied to model: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
+
+        # Now delete the encoder to save vram--we don't need it
+        if use_lora:
+            # When using LoRA, the model structure is: PeftModel.base_model.model (MBartForSeq2SeqLM).model (MBartModel).encoder
+            del self.mbart.base_model.model.model.encoder
+        else:
+            del self.mbart.model.encoder
 
         d_model = self.mbart.config.d_model
         self.pad_token_id = self.mbart.config.pad_token_id
@@ -51,9 +80,11 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         if embedding_dim != d_model:
             self.proj = torch.nn.Linear(embedding_dim, d_model)
             logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
-
-        # Decoder layer freezing
-        if freeze_decoder and train_last_k_decoder_layers == 0:
+        
+        # When using LoRA, parameter freezing is handled by PEFT, so we skip manual freezing
+        if use_lora:
+            logger.info("Decoder parameter management handled by LoRA")
+        elif freeze_decoder and train_last_k_decoder_layers == 0:
             for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = False
             logger.info("Decoder frozen")
