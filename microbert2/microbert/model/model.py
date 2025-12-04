@@ -252,7 +252,7 @@ class RcloneUploadCallback(TrainCallback):
                 model_path = WriteModelCallback.last_saved_model_path
                 model_name = model_path.name
                 self.logger.info(f"Uploading model: {model_name}")
-                cmd = ["rclone", "copy", str(model_path), f"{self.remote_path}/models/{model_name}/", "--progress"]
+                cmd = ["rclone", "copy", str(model_path), f"{self.remote_path}/{model_name}/", "--progress"]
                 result = subprocess.run(cmd, capture_output=True, text=True)
 
                 if result.returncode != 0:
@@ -268,7 +268,7 @@ class RcloneUploadCallback(TrainCallback):
 
                 if val_metrics_file.exists():
                     self.logger.info("Uploading validation metrics...")
-                    cmd = ["rclone", "copy", str(val_metrics_file), f"{self.remote_path}/{work_dir.name}/"]
+                    cmd = ["rclone", "copy", str(val_metrics_file), f"{self.remote_path}/"]
                     result = subprocess.run(cmd, capture_output=True, text=True)
 
                     if result.returncode != 0:

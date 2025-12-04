@@ -4,13 +4,13 @@
 local language = "coptic";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "coptic_mlm_mt_lora";
+local experiment_name = "coptic_mlm";
 
 // Rclone Upload Configuration ---------------------------------------------------
 // Set this to your rclone remote path to enable automatic upload after training
 // Example: "myremote:path/to/models" where "myremote" is configured in rclone
 // Set to null to disable upload
-local rclone_remote_path = "iu:iu/runs/20251202_"+coptic_mlm_mt_lora;
+local rclone_remote_path = "null";
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
@@ -144,7 +144,7 @@ local mt_task = {
         freeze_decoder: true,
         train_last_k_decoder_layers: 0,
         // LoRA configuration
-        use_lora: true,
+        use_lora: false,
         lora_r: 8,
         lora_alpha: 16,
         lora_dropout: 0.1,
@@ -154,7 +154,7 @@ local mt_task = {
     proportion: 0.2,
     max_sequence_length: 128
 };
-local tasks = [mlm_task,mt_task];
+local tasks = [mlm_task];
 
 
 // --------------------------------------------------------------------------------
