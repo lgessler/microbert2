@@ -96,6 +96,7 @@ class DependencyParsingEvaluator:
             )
 
             # Step 2: Train the parser
+            # train() doesn't return results, it only prints them
             parser.train(
                 train=train_data_path,
                 dev=dev_data_path,
@@ -106,35 +107,47 @@ class DependencyParsingEvaluator:
                 proj=False,  # Don't enforce projectivity (allows non-projective trees)
                 punct=False,  # Don't ignore punctuation during evaluation
             )
-
             logger.info("Model trained and saved successfully")
 
-            # Evaluate on test set to get metrics
-            logger.info("Evaluating on test set...")
-            test_results = parser.evaluate(test_data_path, batch_size=5000)
-            logger.info(test_results)
-            # Extract metrics from test results
-            # DiaParser's evaluate() returns a tuple: (loss, metric_object)
-            # The metric_object has attributes: UAS, LAS, UCM, LCM
-            if isinstance(test_results, tuple) and len(test_results) >= 2:
-                loss, metrics = test_results[0], test_results[1]
-                results = {
-                    'loss': float(loss),
-                    'UAS': float(metrics.UAS) if hasattr(metrics, 'UAS') else None,
-                    'LAS': float(metrics.LAS) if hasattr(metrics, 'LAS') else None,
-                    'UCM': float(metrics.UCM) if hasattr(metrics, 'UCM') else None,
-                    'LCM': float(metrics.LCM) if hasattr(metrics, 'LCM') else None,
-                }
-            else:
-                # Fallback if structure is different
-                results = {
-                    'raw_results': str(test_results)
-                }
+            # Step 3: Load the trained model and evaluate on test set to get metrics
+            logger.info("Loading trained model for evaluation")
+            parser = BiaffineDependencyParser.load(f"{save_path}/model", device=self.device, weights_only=False)
 
-            # Remove None values
-            results = {k: v for k, v in results.items() if v is not None}
+            # Evaluate on test set
+            logger.info("Evaluating on test set")
+            test_loss, test_metrics = parser.evaluate(
+                data=test_data_path,
+                batch_size=5000,
+                partial=False,
+                tree=True,
+                proj=False,
+                punct=False,
+            )
 
-            logger.info(f"Test results: {results}")
+            # Extract metrics from evaluation results
+            logger.info(f"Test metrics object: {test_metrics}")
+            logger.info(f"Test metrics type: {type(test_metrics)}")
+            logger.info(f"Test metrics dir: {dir(test_metrics)}")
+
+            results = {
+                'loss': float(test_loss),
+            }
+
+            # Try to extract metrics
+            for metric_name in ['uas', 'las', 'ucm', 'lcm']:
+                try:
+                    if hasattr(test_metrics, metric_name):
+                        value = getattr(test_metrics, metric_name)
+                        results[metric_name.upper()] = float(value)
+                        logger.info(f"Extracted {metric_name}: {value}")
+                    elif isinstance(test_metrics, dict) and metric_name in test_metrics:
+                        value = test_metrics[metric_name]
+                        results[metric_name.upper()] = float(value)
+                        logger.info(f"Extracted {metric_name} from dict: {value}")
+                except Exception as e:
+                    logger.warning(f"Could not extract {metric_name}: {e}")
+
+            logger.info(f"Best test results from training: {results}")
 
             # Save predictions if output path is provided
             if predictions_output:
