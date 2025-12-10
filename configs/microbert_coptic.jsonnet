@@ -10,7 +10,7 @@ local experiment_name = "coptic_mlm";
 // Set this to your rclone remote path to enable automatic upload after training
 // Example: "myremote:path/to/models" where "myremote" is configured in rclone
 // Set to null to disable upload
-local rclone_remote_path = "null";
+local rclone_remote_path = null;
 
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
