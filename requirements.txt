@@ -9,6 +9,7 @@ datasets
 allennlp-light
 wandb
 peft
+seqeval
 
 # other
 conllu
