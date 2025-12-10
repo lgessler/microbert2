@@ -1,10 +1,10 @@
 // --------------------------------------------------------------------------------
 // Parameters
 // --------------------------------------------------------------------------------
-local language = "coptic";
+local language = "tamil";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "coptic_mlm";
+local experiment_name = "tamil_mlm";
 
 // Rclone Upload Configuration ---------------------------------------------------
 // Set this to your rclone remote path to enable automatic upload after training
@@ -15,27 +15,30 @@ local rclone_remote_path = null;
 // Tokenization -------------------------------------------------------------------
 // Do you want Stanza to retokenize your input? Set to `false` if you are confident
 // in the quality of your tokenization, or if your language is not supported by Stanza.
-local stanza_retokenize = false;
+local stanza_retokenize = true;
 // Do you want Stanza to look for multi-word tokens? See https://stanfordnlp.github.io/stanza/mwt.html
 // You probably want to keep this at `false`, since in many languges, the subtokens
 // can differ quite a bit from surface forms (e.g. aux => à + les in French)
 local stanza_use_mwt = false;
 // Only needed if stanza_retokenize is `true`. Find your language code here:
 // https://stanfordnlp.github.io/stanza/performance.html
-local stanza_language_code = null;
+local stanza_language_code = "ta";
 // If set to null, we will attempt to guess something sensible. For reference, BERT
 // has 30000 vocabulary items.
 local vocab_size = 10000;
 
 // Data ---------------------------------------------------------------------------
-local whitespace_tokenized_text_path_train = "data/cop/train.txt";
-local whitespace_tokenized_text_path_dev = "data/cop/dev.txt";
-local train_conllu_path = "data/cop/cop_scriptorium-ud-train.conllu";
-local dev_conllu_path = "data/cop/cop_scriptorium-ud-dev.conllu";
-local test_conllu_path = "data/cop/cop_scriptorium-ud-test.conllu";
-local train_mt_path = "data/cop/train.tsv";
-local dev_mt_path = "data/cop/dev.tsv";
-local test_mt_path = "data/cop/test.tsv";
+local whitespace_tokenized_text_path_train = "data/tam/train.txt";
+local whitespace_tokenized_text_path_dev = "data/tam/dev.txt";
+local train_conllu_path = "data/tam/ta_ttb-ud-train.conllu";
+local dev_conllu_path = "data/tam/ta_ttb-ud-dev.conllu";
+local test_conllu_path = "data/tam/ta_ttb-ud-test.conllu";
+local train_mt_path = "data/tam/train.tsv";
+local dev_mt_path = "data/tam/dev.tsv";
+local test_mt_path = "data/tam/test.tsv";
+local train_ner_path = "data/tam/wikiann-ta_train.bio";
+local dev_ner_path = "data/tam/wikiann-ta_dev.bio";
+local test_ner_path = "data/tam/wikiann-ta_test.bio";
 
 // Encoder ------------------------------------------------------------------------
 local max_length = 512;
@@ -108,51 +111,6 @@ local mlm_task = {
     type: "microbert2.microbert.tasks.mlm.MLMTask",
     dataset: { type: "ref", ref: "raw_text_data" },
     tokenizer: tokenizer,
-};
-local pos_task = {
-    type: "microbert2.microbert.tasks.ud_pos.UDPOSTask",
-    head: {
-        num_layers: num_layers,
-        embedding_dim: hidden_size,
-        use_layer_mix: false,
-        layer_index: 1,
-    },
-    tag_type: "xpos",
-    train_conllu_path: train_conllu_path,
-    dev_conllu_path: dev_conllu_path,
-    test_conllu_path: test_conllu_path,
-    proportion: 0.2,
-};
-local parser = (import "lib/parser.libsonnet")(hidden_size, num_layers);
-local parse_task = {
-    type: "microbert2.microbert.tasks.ud_parse.UDParseTask",
-    head: parser,
-    train_conllu_path: train_conllu_path,
-    dev_conllu_path: dev_conllu_path,
-    test_conllu_path: test_conllu_path,
-};
-local mt_task = {
-    type: "microbert2.microbert.tasks.mbart_mt.MBARTMTTask",
-    train_mt_path: train_mt_path,
-    dev_mt_path: dev_mt_path,
-    test_mt_path: test_mt_path,
-    mbart_model_name: "facebook/mbart-large-50-many-to-one-mmt",
-    head: {
-        embedding_dim: hidden_size,
-        num_encoder_layers: num_layers,
-        use_layer_mix: false,
-        freeze_decoder: true,
-        train_last_k_decoder_layers: 0,
-        // LoRA configuration
-        use_lora: false,
-        lora_r: 8,
-        lora_alpha: 16,
-        lora_dropout: 0.1,
-    },
-    tgt_lang_code: "en_XX",
-    src_lang_code: "ar_AR",
-    proportion: 0.2,
-    max_sequence_length: 128
 };
 local tasks = [mlm_task];
 
@@ -278,5 +236,22 @@ local val_dataloader = {
         //    metric_names: ["loss", "accuracy"],
         //    test_split: "test",
         //},
+
+        // NER Evaluation
+        ner_evaluation: {
+            type: "microbert2.microbert.eval.ner::evaluate_ner",
+            // Wait for training to complete before evaluating
+            trained_model: { type: "ref", ref: "trained_model" },
+            model_path: model_path,
+            train_data_path: train_ner_path,
+            dev_data_path: dev_ner_path,
+            test_data_path: test_ner_path,
+            save_path: model_path + "/ner",
+            predictions_output: model_path + "/ner/predictions_test.bio",
+            results_json: model_path + "/ner/results.json",
+            batch_size: 16,
+            learning_rate: 5e-5,
+            num_epochs: 3,
+        },
     }
 }

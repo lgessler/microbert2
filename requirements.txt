@@ -8,6 +8,8 @@ datasets
 #ai2-tango[torch,transformers]==1.3.2
 allennlp-light
 wandb
+peft
+seqeval
 
 # other
 conllu
