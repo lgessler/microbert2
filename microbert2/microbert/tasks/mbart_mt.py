@@ -59,6 +59,12 @@ class MBARTMTHead(torch.nn.Module, FromParams):
             )
             self.mbart = get_peft_model(self.mbart, lora_config)
             logger.info(f"LoRA applied to model: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
+            # Verify LoRA was applied correctly
+            trainable_params = sum(p.numel() for p in self.mbart.parameters() if p.requires_grad)
+            total_params = sum(p.numel() for p in self.mbart.parameters())
+            logger.info(f"LoRA applied: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
+            logger.info(f"Trainable: {trainable_params:,} / {total_params:,} ({100*trainable_params/total_params:.2f}%)")
+
 
         # Now delete the encoder to save vram--we don't need it
         if use_lora:
@@ -185,6 +191,23 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
         self._tokenizer.tgt_lang = tgt_lang_code
         self._pad_token_id = self._tokenizer.pad_token_id
         self._max_sequence_length = max_sequence_length
+
+        # Create deterministic hash string from constructor parameters only
+        self._hash_string = (
+            self.slug +
+            train_mt_path +
+            dev_mt_path +
+            (test_mt_path if test_mt_path else "") +
+            delimiter +
+            str(proportion) +
+            mbart_model_name +
+            tgt_lang_code +
+            src_lang_code +
+            str(max_sequence_length)
+        )
+
+    def det_hash_object(self) -> Any:
+        return det_hash(self._hash_string)
 
     @property
     def slug(self):
