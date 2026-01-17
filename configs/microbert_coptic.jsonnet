@@ -4,7 +4,7 @@
 local language = "coptic";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "coptic_mlm";
+local experiment_name = "coptic_ml_mt_small_mbart";
 
 // Rclone Upload Configuration ---------------------------------------------------
 // Set this to your rclone remote path to enable automatic upload after training
@@ -136,7 +136,8 @@ local mt_task = {
     train_mt_path: train_mt_path,
     dev_mt_path: dev_mt_path,
     test_mt_path: test_mt_path,
-    mbart_model_name: "facebook/mbart-large-50-many-to-one-mmt",
+    //mbart_model_name: "facebook/mbart-large-50-many-to-one-mmt",
+    mbart_tokenizer: "facebook/mbart-large-50-many-to-one-mmt",
     head: {
         embedding_dim: hidden_size,
         num_encoder_layers: num_layers,
@@ -151,19 +152,20 @@ local mt_task = {
         lora_alpha: 16,
         lora_dropout: 0.1,
         // small mbart for ablation study. will need omit mbart_model_name and uncomment this below
-        // mbart_config_kwargs:{
-        //     d_model: 96,
-        //     decoder_layers: 3,
-        //     decoder_ffn_dim: 192,
-        //     decoder_attention_heads: 8
-        //}
+         mbart_config_kwargs:{
+             vocab_size: 250054,  // Must match mbart-large-50 tokenizer vocab size
+             d_model: 96,
+             decoder_layers: 3,
+             decoder_ffn_dim: 192,
+             decoder_attention_heads: 8
+        }
     },
     tgt_lang_code: "en_XX",
     src_lang_code: "ar_AR",
     proportion: 0.2,
     max_sequence_length: 128
 };
-local tasks = [mlm_task];
+local tasks = [mlm_task,mt_task];
 
 
 // --------------------------------------------------------------------------------

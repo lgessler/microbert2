@@ -215,6 +215,7 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
         delimiter: str = "\t",
         proportion: float = 0.1,
         mbart_model_name: Optional[str] = None,
+        mbart_tokenizer: str = "facebook/mbart-large-50-many-to-one-mmt",
         tgt_lang_code: str = "en_XX",
         src_lang_code: str = "ar_AR",
         max_sequence_length: int = 512,
@@ -227,9 +228,10 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
         }
         self._proportion = proportion
         self._mbart_model_name = mbart_model_name
+        self._mbart_tokenizer = mbart_tokenizer
         self._tgt_lang_code = tgt_lang_code
 
-        self._tokenizer = AutoTokenizer.from_pretrained(mbart_model_name, use_fast=False)
+        self._tokenizer = AutoTokenizer.from_pretrained(mbart_tokenizer, use_fast=False)
         self._tokenizer.src_lang = src_lang_code
         self._tokenizer.tgt_lang = tgt_lang_code
         self._pad_token_id = self._tokenizer.pad_token_id
@@ -243,7 +245,7 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
             (test_mt_path if test_mt_path else "") +
             delimiter +
             str(proportion) +
-            mbart_model_name +
+            str(mbart_model_name) +
             tgt_lang_code +
             src_lang_code +
             str(max_sequence_length)
