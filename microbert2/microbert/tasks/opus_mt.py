@@ -98,7 +98,7 @@ class OpusMTHead(torch.nn.Module, FromParams):
                        param.requires_grad = True
                        trainable_count += param.numel()
             logger.info(f"cross-attention K,V projections unfrozen: {trainable_count} parameters")
-        elif freeze_decoder and train_last_k_decoder_layers == 0:
+        elif freeze_decoder:
             for p in self.opus.model.decoder.parameters():
                 p.requires_grad = False
             logger.info("Decoder frozen")
