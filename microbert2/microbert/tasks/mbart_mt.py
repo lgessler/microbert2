@@ -27,20 +27,40 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         self,
         num_encoder_layers: int,
         embedding_dim: int,
-        mbart_model_name: str,
+        mbart_model_name: Optional[str] = None,
+        mbart_config_kwargs: Optional[Dict[str,Any]] = None,
         use_layer_mix: bool = False,
         freeze_decoder: bool = True,
+        train_cross_attn_kv: bool = False,
         train_last_k_decoder_layers: int = 0,
         use_lora: bool = False,
         lora_r: int = 8,
         lora_alpha: int = 16,
         lora_dropout: float = 0.1,
+        mt_weight: float = 0.1,
+        mlp_projection: bool = False,
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
+        self.mt_weight = mt_weight
+        self.mlp_projection = mlp_projection
+        if mbart_model_name is not None and mbart_config_kwargs is not None:
+            raise ValueError("Specify either 'mbart_model_name' or 'mbart_config_kwargs' not both")
+        if mbart_model_name is None and mbart_config_kwargs is None:
+            raise ValueError("Must specify either 'mbart_model_name' or 'mbart_config_kwargs'")
 
-        # Load MBART
-        self.mbart = AutoModelForSeq2SeqLM.from_pretrained(mbart_model_name)
+        if mbart_model_name is not None:
+            self.mbart = AutoModelForSeq2SeqLM.from_pretrained(mbart_model_name)
+
+        if mbart_config_kwargs is not None:
+            #Build small mbart from config
+            from transformers import MBartConfig, MBartForConditionalGeneration
+            config = MBartConfig()
+            for key, value in mbart_config_kwargs.items():
+                if not hasattr(config,key):
+                    raise ValueError(f"MBartConfig has no attribute {key}")
+                setattr(config,key,value)
+            self.mbart = MBartForConditionalGeneration(config)
 
         # Apply LoRA before deleting encoder (if using LoRA)
         if use_lora:
@@ -84,12 +104,33 @@ class MBARTMTHead(torch.nn.Module, FromParams):
             self.mix = ScalarMix(num_encoder_layers)
         self.proj = None
         if embedding_dim != d_model:
-            self.proj = torch.nn.Linear(embedding_dim, d_model)
-            logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
+            if not self.mlp_projection:
+                self.proj = torch.nn.Linear(embedding_dim, d_model)
+                logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
+            else:
+                intermediate_dim = (embedding_dim+d_model) // 2
+                self.proj = torch.nn.Sequential(
+                        torch.nn.Linear(embedding_dim, intermediate_dim),
+                        torch.nn.GELU(),
+                        torch.nn.Dropout(0.1),
+                        torch.nn.LayerNorm(intermediate_dim),
+                        torch.nn.Linear(intermediate_dim, d_model)
+                        )
         
         # When using LoRA, parameter freezing is handled by PEFT, so we skip manual freezing
         if use_lora:
             logger.info("Decoder parameter management handled by LoRA")
+        elif train_cross_attn_kv:
+            for p in self.mbart.model.decoder.parameters():
+                p.requires_grad = False
+            #unfreeze k and v projections
+            trainable_count = 0
+            for layer in self.mbart.model.decoder.layers:
+                for name, param in layer.encoder_attn.named_parameters():
+                    if 'k_proj' in name or 'v_proj' in name:
+                        param.requires_grad = True
+                        trainable_count += param.numel()
+            logger.info(f"cross-attention K,V projections unfrozen: {trainable_count} parameters")
         elif freeze_decoder and train_last_k_decoder_layers == 0:
             for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = False
@@ -135,7 +176,7 @@ class MBARTMTHead(torch.nn.Module, FromParams):
             labels=labels,
             use_cache=False,
         )
-        loss = out.loss
+        loss = out.loss*self.mt_weight
         self.perplexity.update(out.logits, labels)
         return {"loss": loss, "perplexity": self.perplexity.compute()}
 
