@@ -1,14 +1,18 @@
 from json import encoder
 from logging import getLogger
+from typing import Any, Dict, List, Optional
 import csv
+from tango.common import FromParams, Lazy, det_hash
 from tango.common.det_hash import CustomDetHash
 import torch
 from peft import LoraConfig, get_peft_config, get_peft_model, TaskType
 from torch.jit import freeze
+from torch.nn.utils.rnn import pad_sequence
 from transformers.modeling_outputs import BaseModelOutput
 from microbert2.common import pool_embeddings
+from microbert2.microbert.tasks.mbart_mt import read_parallel_tsv
 from microbert2.microbert.tasks.task import MicroBERTTask
-from transformers import AutoModelForSeq2SeqLM
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
 logger = getLogger(__name__)
 
@@ -157,3 +161,87 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
             proportion: float = 0.1,
             opus_model_name : str = "Helsinki-NLP/opus-mt-mul-en",
             ):
+        self._head = head
+        self._dataset = {
+                "train": read_parallel_tsv(train_mt_path,delimiter),
+                "dev": read_parallel_tsv(dev_mt_path,delimiter),
+                "test": read_parallel_tsv(test_mt_path,delimiter) if test_mt_path else [],
+        }
+        self._proportion = proportion
+        self._opus_model_name = opus_model_name
+        self._max_sequence_length = max_sequence_length
+
+        self._tokenizer = AutoTokenizer.from_pretrained(opus_model_name, use_fast = False)
+        self._pad_token_id = self._tokenizer.pad_token_id
+
+        self._hash_string(
+            self.slug + train_mt_path + dev_mt_path + (test_mt_path if test_mt_path else "") +
+            opus_model_name
+            )
+
+    def det_hash_object(self) -> Any:
+        return det_hash(self._hash_string)
+
+    @property
+    def slug(self) -> str:
+        return "opus-mt"
+
+    def construct_head(self, model) -> OPUSMTHead:
+        self._head = self._head.construct(opus_model_name=self._opus_model_name)
+        return self._head
+
+    @property
+    def dataset(self) -> dict:
+        return self._dataset
+
+    def _encode_tgt(self,text:str):
+        enc = self._tokenizer(
+            text,
+            max_length=self._max_sequence_length,
+            truncation = True,
+            add_special_tokens=True,
+            )
+        return (
+            torch.tensor(enc["input_ids"],dtype=torch.long),
+            torch.tensor(enc["attention_mask"],dtype=torch.long),
+            )
+
+    def tensorify_data(self,key,value):
+        if key == "tgt_input_ids":
+            ids,_ = self._encode_tgt(value)
+            return ids
+        elif key == "tgt_attention_mask":
+            _,mask = self._encode_tgt(value)
+        else:
+            raise ValueError(key)
+
+    def null_tensor(self,key):
+        if key == "tgt_input_ids":
+            return torch.tensor([self._pad_token_id],dtype=torch.long)
+        elif key == "tgt_attention_mask":
+            return torch.tensor([0],dtype=torch.long)
+        else:
+            raise ValueError(f"Unknow key: {key}")
+
+    def collate_data(self, key:str, values: List[torch.Tensor]) -> torch.Tensor:
+        if key == "tgt_input_ids":
+            return pad_sequence(values,batch_first=True,padding_value=self._pad_token_id)
+        elif key == "tgt_attention_mask":
+            return pad_sequence(values, batch_first=True, padding_value=0)
+        else:
+            raise ValueError(f"Unknow key: {key}")
+
+    @property
+    def inst_proportion(self) -> float:
+        return self._proportion
+
+    @property
+    def progress_items(self) -> List[str]:
+        return ["perplexity","loss"]
+
+    @property
+    def data_keys(self) -> List[str]:
+        return ["tgt_input_ids","tgt_attention_mask"]
+
+    def reset_metrics(self):
+        self._head.perplexity.reset()
