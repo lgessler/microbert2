@@ -65,10 +65,6 @@ class MBARTMTHead(torch.nn.Module, FromParams):
 
         # Apply LoRA before deleting encoder (if using LoRA)
         if use_lora:
-            # First freeze the entire model
-            for p in self.mbart.parameters():
-                p.requires_grad = False
-
             # Apply LoRA to the full model (targeting decoder modules only)
             lora_config = LoraConfig(
                 r=lora_r,
