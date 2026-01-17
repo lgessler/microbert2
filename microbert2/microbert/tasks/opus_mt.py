@@ -12,11 +12,12 @@ from transformers.modeling_outputs import BaseModelOutput
 from microbert2.common import pool_embeddings
 from microbert2.microbert.tasks.mbart_mt import read_parallel_tsv
 from microbert2.microbert.tasks.task import MicroBERTTask
+from torchmetrics import Perplexity
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
 logger = getLogger(__name__)
 
-class OPUSMTHead(torch.nn.Module, FromParams):
+class OpusMTHead(torch.nn.Module, FromParams):
     def __init__(
             self,
             num_encoder_layers: int,
@@ -35,7 +36,7 @@ class OPUSMTHead(torch.nn.Module, FromParams):
         super().__init__()
         self.use_layer_mix = use_layer_mix
         self.mt_weight = mt_weight
-
+        self.mlp_projection = mlp_projection
         if opus_model_name is not None:
             self.opus = AutoModelForSeq2SeqLM.from_pretrained("Helsinki-NLP/opus-mt-mul-en")  
             
@@ -149,17 +150,18 @@ class OPUSMTHead(torch.nn.Module, FromParams):
         return rows
     
 @MicroBERTTask.register("microbert2.microbert.tasks.opus_mt.OPUSMTTask")
-class MBARTMTTask(MicroBERTTask, CustomDetHash):
+class OpusMTTask(MicroBERTTask, CustomDetHash):
     
     def __init__(
             self,
-            head: Lazy[OPUSMTHead],
+            head: Lazy[OpusMTHead],
             train_mt_path: str,
             dev_mt_path: str,
             test_mt_path: Optional[str] = None,
             delimiter: str ="\t",
             proportion: float = 0.1,
             opus_model_name : str = "Helsinki-NLP/opus-mt-mul-en",
+            max_sequence_length: int = 512
             ):
         self._head = head
         self._dataset = {
@@ -186,7 +188,7 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
     def slug(self) -> str:
         return "opus-mt"
 
-    def construct_head(self, model) -> OPUSMTHead:
+    def construct_head(self, model) -> OpusMTHead:
         self._head = self._head.construct(opus_model_name=self._opus_model_name)
         return self._head
 
@@ -212,6 +214,7 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
             return ids
         elif key == "tgt_attention_mask":
             _,mask = self._encode_tgt(value)
+            return mask
         else:
             raise ValueError(key)
 
