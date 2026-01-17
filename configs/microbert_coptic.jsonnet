@@ -156,7 +156,7 @@ local mt_task = {
         //     decoder_layers: 3,
         //     decoder_ffn_dim: 192,
         //     decoder_attention_heads: 8
-        }
+        //}
     },
     tgt_lang_code: "en_XX",
     src_lang_code: "ar_AR",
