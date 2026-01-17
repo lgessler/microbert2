@@ -176,7 +176,7 @@ class OpusMTTask(MicroBERTTask, CustomDetHash):
         self._tokenizer = AutoTokenizer.from_pretrained(opus_model_name, use_fast = False)
         self._pad_token_id = self._tokenizer.pad_token_id
 
-        self._hash_string(
+        self._hash_string = (
             self.slug + train_mt_path + dev_mt_path + (test_mt_path if test_mt_path else "") +
             opus_model_name
             )

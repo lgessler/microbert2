@@ -177,6 +177,8 @@ class MBARTMTHead(torch.nn.Module, FromParams):
             use_cache=False,
         )
         loss = out.loss*self.mt_weight
+        #logger.info(f"out before applied weight: {out.loss}")
+        #logger.info(f"out after applied weight: {loss}")
         self.perplexity.update(out.logits, labels)
         return {"loss": loss, "perplexity": self.perplexity.compute()}
 
@@ -212,7 +214,7 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
         test_mt_path: Optional[str] = None,
         delimiter: str = "\t",
         proportion: float = 0.1,
-        mbart_model_name: str = "facebook/mbart-large-50-many-to-one-mmt",
+        mbart_model_name: Optional[str] = None,
         tgt_lang_code: str = "en_XX",
         src_lang_code: str = "ar_AR",
         max_sequence_length: int = 512,
