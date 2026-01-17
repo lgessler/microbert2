@@ -241,7 +241,7 @@ local val_dataloader = {
         ner_evaluation: {
             type: "microbert2.microbert.eval.ner::evaluate_ner",
             // Wait for training to complete before evaluating
-            //trained_model: { type: "ref", ref: "trained_model" },
+            trained_model: { type: "ref", ref: "trained_model" },
             model_path: model_path,
             train_data_path: train_ner_path,
             dev_data_path: dev_ner_path,
