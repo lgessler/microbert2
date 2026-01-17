@@ -143,11 +143,20 @@ local mt_task = {
         use_layer_mix: false,
         freeze_decoder: true,
         train_last_k_decoder_layers: 0,
+        mt_weight: 0.1,
+        mlp_projection: false,
         // LoRA configuration
         use_lora: false,
         lora_r: 8,
         lora_alpha: 16,
         lora_dropout: 0.1,
+        // small mbart for ablation study. will need omit mbart_model_name and uncomment this below
+        // mbart_config_kwargs:{
+        //     d_model: 96,
+        //     decoder_layers: 3,
+        //     decoder_ffn_dim: 192,
+        //     decoder_attention_heads: 8
+        }
     },
     tgt_lang_code: "en_XX",
     src_lang_code: "ar_AR",
