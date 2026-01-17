@@ -61,6 +61,7 @@ class MBARTMTHead(torch.nn.Module, FromParams):
                     raise ValueError(f"MBartConfig has no attribute {key}")
                 setattr(config,key,value)
             self.mbart = MBartForConditionalGeneration(config)
+            logger.info(f"Initialized MBartForConditionalGeneration from config with {sum(p.numel() for p in self.mbart.parameters()):,} parameters")
 
         # Apply LoRA before deleting encoder (if using LoRA)
         if use_lora:
@@ -116,6 +117,7 @@ class MBARTMTHead(torch.nn.Module, FromParams):
                         torch.nn.LayerNorm(intermediate_dim),
                         torch.nn.Linear(intermediate_dim, d_model)
                         )
+                logger.info(f"MLP Projection layer added: {embedding_dim} -> {intermediate_dim} -> {d_model}")
         
         # When using LoRA, parameter freezing is handled by PEFT, so we skip manual freezing
         if use_lora:
