@@ -252,7 +252,7 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
 
     @property
     def slug(self):
-        return "mt"
+        return "mbart-mt"
 
     def construct_head(self, model):
         self._head = self._head.construct(mbart_model_name=self._mbart_model_name)
