@@ -4,7 +4,7 @@
 local language = "coptic";
 // Optional and purely descriptive, intended to help you keep track of different model
 // configurations. Set to `""` if you don't want to bother.
-local experiment_name = "coptic_ml_mt_small_mbart";
+local experiment_name = "coptic_mlm";
 
 // Rclone Upload Configuration ---------------------------------------------------
 // Set this to your rclone remote path to enable automatic upload after training
@@ -167,7 +167,7 @@ local mt_task = {
     proportion: 0.2,
     max_sequence_length: 128
 };
-local tasks = [mlm_task,mt_task];
+local tasks = [mlm_task];
 
 
 // --------------------------------------------------------------------------------
