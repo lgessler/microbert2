@@ -102,7 +102,11 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         self.proj = None
         if embedding_dim != d_model:
             if not self.mlp_projection:
-                self.proj = torch.nn.Linear(embedding_dim, d_model)
+                self.proj = torch.nn.Sequential(
+                            torch.nn.Linear(embedding_dim, d_model),
+                            torch.nn.LayerNorm(d_model),
+                            )
+
                 logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
             else:
                 intermediate_dim = (embedding_dim+d_model) // 2
@@ -110,8 +114,8 @@ class MBARTMTHead(torch.nn.Module, FromParams):
                         torch.nn.Linear(embedding_dim, intermediate_dim),
                         torch.nn.GELU(),
                         torch.nn.Dropout(0.1),
-                        torch.nn.LayerNorm(intermediate_dim),
-                        torch.nn.Linear(intermediate_dim, d_model)
+                        torch.nn.Linear(intermediate_dim, d_model),
+                        torch.nn.LayerNorm(d_model),
                         )
                 logger.info(f"MLP Projection layer added: {embedding_dim} -> {intermediate_dim} -> {d_model}")
         
