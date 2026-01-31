@@ -25,7 +25,7 @@ class OpusMTHead(torch.nn.Module, FromParams):
             opus_model_name: str,
             use_layer_mix: bool = False,
             freeze_decoder: bool = True,
-            train_cross_attn_kv: bool = False,
+            use_cross_attn_kv_lora: bool = False,
             use_lora: bool = False,
             lora_r: int = 8,
             lora_alpha: int = 16, 
@@ -89,18 +89,21 @@ class OpusMTHead(torch.nn.Module, FromParams):
 
         if use_lora:
             logger.info("parameter management handled by LoRA")
-        elif train_cross_attn_kv:
-            #freeze all
-            for p in self.opus.model.decoder.parameters():
-                p.requires_grad = False
-            #unfreeze k and v projections
-            trainable_count = 0 
-            for layer in self.opus.model.decoder.layers:
-               for name, param in layer.encoder_attn.named_parameters():
-                   if 'k_proj' in name or 'v_proj' in name:
-                       param.requires_grad = True
-                       trainable_count += param.numel()
-            logger.info(f"cross-attention K,V projections unfrozen: {trainable_count} parameters")
+        elif use_cross_attn_kv_lora:
+            # Apply LoRA specifically to cross-attention K,V projections
+            lora_config = LoraConfig(
+                r=lora_r,
+                lora_alpha=lora_alpha,
+                target_modules=["encoder_attn.k_proj", "encoder_attn.v_proj"],
+                lora_dropout=lora_dropout,
+                bias="none",
+                task_type=TaskType.SEQ_2_SEQ_LM,
+            )
+            self.opus = get_peft_model(self.opus, lora_config)
+            trainable_params = sum(p.numel() for p in self.opus.parameters() if p.requires_grad)
+            total_params = sum(p.numel() for p in self.opus.parameters())
+            logger.info(f"LoRA applied to cross-attention K,V projections: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
+            logger.info(f"Trainable: {trainable_params:,} / {total_params:,} ({100*trainable_params/total_params:.2f}%)")
         elif freeze_decoder:
             for p in self.opus.model.decoder.parameters():
                 p.requires_grad = False
