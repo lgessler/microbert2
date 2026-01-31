@@ -31,7 +31,7 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         mbart_config_kwargs: Optional[Dict[str,Any]] = None,
         use_layer_mix: bool = False,
         freeze_decoder: bool = True,
-        train_cross_attn_kv: bool = False,
+        use_cross_attn_kv_lora: bool = False,
         train_last_k_decoder_layers: int = 0,
         use_lora: bool = False,
         lora_r: int = 8,
@@ -122,7 +122,7 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         # When using LoRA, parameter freezing is handled by PEFT, so we skip manual freezing
         if use_lora:
             logger.info("Decoder parameter management handled by LoRA")
-        elif train_cross_attn_kv:
+        elif use_cross_attn_kv_lora:
             # Apply LoRA specifically to cross-attention K,V projections
             lora_config = LoraConfig(
                 r=lora_r,

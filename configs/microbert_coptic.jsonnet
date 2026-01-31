@@ -143,7 +143,7 @@ local mt_task = {
         num_encoder_layers: num_layers,
         use_layer_mix: false,
         freeze_decoder: true,
-        train_last_k_decoder_layers: 0,
+        use_cross_attn_kv_lora: false,
         mt_weight: 0.1,
         mlp_projection: false,
         // LoRA configuration
