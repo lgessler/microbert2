@@ -123,16 +123,20 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         if use_lora:
             logger.info("Decoder parameter management handled by LoRA")
         elif train_cross_attn_kv:
-            for p in self.mbart.model.decoder.parameters():
-                p.requires_grad = False
-            #unfreeze k and v projections
-            trainable_count = 0
-            for layer in self.mbart.model.decoder.layers:
-                for name, param in layer.encoder_attn.named_parameters():
-                    if 'k_proj' in name or 'v_proj' in name:
-                        param.requires_grad = True
-                        trainable_count += param.numel()
-            logger.info(f"cross-attention K,V projections unfrozen: {trainable_count} parameters")
+            # Apply LoRA specifically to cross-attention K,V projections
+            lora_config = LoraConfig(
+                r=lora_r,
+                lora_alpha=lora_alpha,
+                target_modules=["encoder_attn.k_proj", "encoder_attn.v_proj"],
+                lora_dropout=lora_dropout,
+                bias="none",
+                task_type=TaskType.SEQ_2_SEQ_LM,
+            )
+            self.mbart = get_peft_model(self.mbart, lora_config)
+            trainable_params = sum(p.numel() for p in self.mbart.parameters() if p.requires_grad)
+            total_params = sum(p.numel() for p in self.mbart.parameters())
+            logger.info(f"LoRA applied to cross-attention K,V projections: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
+            logger.info(f"Trainable: {trainable_params:,} / {total_params:,} ({100*trainable_params/total_params:.2f}%)")
         elif freeze_decoder and train_last_k_decoder_layers == 0:
             for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = False
