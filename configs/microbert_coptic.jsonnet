@@ -167,6 +167,29 @@ local mt_task = {
     proportion: 0.2,
     max_sequence_length: 128
 };
+local opus_mt_task = {
+    type: "microbert2.microbert.tasks.opus_mt.OPUSMTTask",
+    train_mt_path: train_mt_path,
+    dev_mt_path: dev_mt_path,
+    test_mt_path: test_mt_path,
+    opus_model_name: "Helsinki-NLP/opus-mt-mul-en",
+    head: {
+        embedding_dim: hidden_size,
+        num_encoder_layers: num_layers,
+        use_layer_mix: false,
+        freeze_decoder: true,
+        train_cross_attn_kv: false,
+        mt_weight: 0.1,
+        mlp_projection: false,
+        // LoRA configuration
+        use_lora: false,
+        lora_r: 8,
+        lora_alpha: 16,
+        lora_dropout: 0.1,
+    },
+    proportion: 0.2,
+    max_sequence_length: 128
+};
 local tasks = [mlm_task];
 
 
