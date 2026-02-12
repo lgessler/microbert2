@@ -137,6 +137,11 @@ class MBARTMTHead(torch.nn.Module, FromParams):
             total_params = sum(p.numel() for p in self.mbart.parameters())
             logger.info(f"LoRA applied to cross-attention K,V projections: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
             logger.info(f"Trainable: {trainable_params:,} / {total_params:,} ({100*trainable_params/total_params:.2f}%)")
+        elif mbart_config_kwargs is not None:
+            # Small randomized mbart: full finetuning on decoder
+            for p in self.mbart.model.decoder.parameters():
+                p.requires_grad = True
+            logger.info("Small randomized mbart: decoder fully trainable")
         elif freeze_decoder and train_last_k_decoder_layers == 0:
             for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = False
