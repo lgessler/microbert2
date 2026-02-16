@@ -16,6 +16,36 @@ from torchmetrics import Perplexity
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
 logger = getLogger(__name__)
+def shift_tokens_right(
+    input_ids: torch.Tensor, 
+    pad_token_id: int, 
+    decoder_start_token_id: int,
+) -> torch.Tensor:
+    """
+    Shift input ids one token to the right.
+    """
+    shifted = input_ids.new_full(input_ids.shape, pad_token_id)
+    shifted[:, 1:] = input_ids[:, :-1].clone()
+    shifted[:, 0] = decoder_start_token_id
+    shifted.masked_fill_(shifted == -100, pad_token_id)
+    return shifted
+
+
+def corrupt_decoder_inputs(
+    decoder_input_ids: torch.LongTensor,
+    pad_token_id: int,
+    corrupt_prob: float = 0.3,
+) -> torch.LongTensor:
+    """
+    Randomly replace tokens with pad to degrade LM signal.
+    Preserves position 0 (start token) and existing pad tokens.
+    """
+    corrupted = decoder_input_ids.clone()
+    corrupt_mask = torch.rand_like(corrupted, dtype=torch.float) < corrupt_prob
+    corrupt_mask[:, 0] = False  # preserve start token
+    corrupt_mask &= (corrupted != pad_token_id)  # don't corrupt padding
+    corrupted.masked_fill_(corrupt_mask, pad_token_id)
+    return corrupted
 
 class OpusMTHead(torch.nn.Module, FromParams):
     def __init__(
@@ -32,7 +62,7 @@ class OpusMTHead(torch.nn.Module, FromParams):
             lora_dropout: float = 0.1,
             mt_weight: float = 0.1,
             mlp_projection: bool = False,
-            decoder_mask_ratio: float = 0.3,
+            decoder_mask_ratio: float = 0.0,
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
@@ -40,7 +70,7 @@ class OpusMTHead(torch.nn.Module, FromParams):
         self.mlp_projection = mlp_projection
         self.decoder_mask_ratio = decoder_mask_ratio
         if opus_model_name is not None:
-            self.opus = AutoModelForSeq2SeqLM.from_pretrained("Helsinki-NLP/opus-mt-mul-en")  
+            self.opus = AutoModelForSeq2SeqLM.from_pretrained(opus_model_name)  
             
         if use_lora:
             lora_config = LoraConfig(
@@ -126,26 +156,18 @@ class OpusMTHead(torch.nn.Module, FromParams):
         labels = tgt_input_ids.clone()
         pad_id = self.opus.config.pad_token_id
         labels[labels == pad_id] = -100
+        start_id = self.opus.config.decoder_start_token_id
 
-        # Build decoder_input_ids by shifting tgt right
-        decoder_start_id = self.opus.config.decoder_start_token_id
-        decoder_input_ids = tgt_input_ids.new_full(tgt_input_ids.shape, pad_id)
-        decoder_input_ids[:, 0] = decoder_start_id
-        decoder_input_ids[:, 1:] = tgt_input_ids[:, :-1]
-
-        # During training, randomly replace decoder inputs with <unk>
+        # Decoder inputs: shifted right, then corrupted during training
+        decoder_input_ids = shift_tokens_right(tgt_input_ids, pad_id, start_id)
         if self.training and self.decoder_mask_ratio > 0:
-            mask_prob = torch.rand(decoder_input_ids.shape, device=decoder_input_ids.device)
-            # Don't mask padding or the start token (position 0)
-            no_mask = (decoder_input_ids == pad_id)
-            no_mask[:, 0] = True
-            mask = (mask_prob < self.decoder_mask_ratio) & ~no_mask
-            decoder_input_ids[mask] = 3  # <unk> token id
-
+            decoder_input_ids = corrupt_decoder_inputs(
+                decoder_input_ids, pad_id, self.decoder_mask_ratio
+            )
         out = self.opus(
                 encoder_outputs = BaseModelOutput(last_hidden_state=encoder_states),
                 attention_mask = encoder_attention_mask,
-                decoder_input_ids = decoder_input_ids,
+                decoder_input_ids=decoder_input_ids,
                 decoder_attention_mask = tgt_attention_mask,
                 labels = labels,
                 use_cache = False,
@@ -154,24 +176,6 @@ class OpusMTHead(torch.nn.Module, FromParams):
         self.perplexity.update(out.logits, labels)
         return {"loss":loss,"perplexity":self.perplexity.compute()}
 
-    def read_parallel_tsv(path: str, delimiter: str = "\t"):
-        rows = []
-        with open(path, "r", encoding="utf-8") as f:
-            reader = csv.reader(f, delimiter = delimiter)
-            for row in reader:
-                if len(row) < 2:
-                    continue
-                src = row[0].strip()
-                tgt = row[1].strip()
-                if src and tgt:
-                    rows.append(
-                            {
-                                "tokens": src.split(),
-                                "tgt_input_ids": tgt,
-                                "tgt_attention_mask": tgt,
-                                }
-                    )
-        return rows
     
 @MicroBERTTask.register("microbert2.microbert.tasks.opus_mt.OPUSMTTask")
 class OpusMTTask(MicroBERTTask, CustomDetHash):
@@ -201,9 +205,10 @@ class OpusMTTask(MicroBERTTask, CustomDetHash):
         self._pad_token_id = self._tokenizer.pad_token_id
 
         self._hash_string = (
-            self.slug + train_mt_path + dev_mt_path + (test_mt_path if test_mt_path else "") +
-            opus_model_name
-            )
+            self.slug + train_mt_path + dev_mt_path + (test_mt_path or "") +
+            opus_model_name +
+            f"|maxlen={max_sequence_length}|prop={proportion}"
+        )
 
     def det_hash_object(self) -> Any:
         return det_hash(self._hash_string)
@@ -248,7 +253,7 @@ class OpusMTTask(MicroBERTTask, CustomDetHash):
         elif key == "tgt_attention_mask":
             return torch.tensor([0],dtype=torch.long)
         else:
-            raise ValueError(f"Unknow key: {key}")
+            raise ValueError(f"Unknown key: {key}")
 
     def collate_data(self, key:str, values: List[torch.Tensor]) -> torch.Tensor:
         if key == "tgt_input_ids":

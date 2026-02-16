@@ -21,7 +21,6 @@ from microbert2.microbert.tasks.task import MicroBERTTask
 
 logger = getLogger(__name__)
 
-
 class MBARTMTHead(torch.nn.Module, FromParams):
     def __init__(
         self,
