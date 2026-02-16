@@ -20,6 +20,36 @@ from microbert2.common import pool_embeddings
 from microbert2.microbert.tasks.task import MicroBERTTask
 
 logger = getLogger(__name__)
+def shift_tokens_right(
+    input_ids: torch.Tensor, 
+    pad_token_id: int, 
+    decoder_start_token_id: int,
+) -> torch.Tensor:
+    """
+    Shift input ids one token to the right.
+    """
+    shifted = input_ids.new_full(input_ids.shape, pad_token_id)
+    shifted[:, 1:] = input_ids[:, :-1].clone()
+    shifted[:, 0] = decoder_start_token_id
+    shifted.masked_fill_(shifted == -100, pad_token_id)
+    return shifted
+
+
+def corrupt_decoder_inputs(
+    decoder_input_ids: torch.LongTensor,
+    pad_token_id: int,
+    corrupt_prob: float = 0.3,
+) -> torch.LongTensor:
+    """
+    Randomly replace tokens with pad to degrade LM signal.
+    Preserves position 0 (start token) and existing pad tokens.
+    """
+    corrupted = decoder_input_ids.clone()
+    corrupt_mask = torch.rand_like(corrupted, dtype=torch.float) < corrupt_prob
+    corrupt_mask[:, 0] = False  # preserve start token
+    corrupt_mask &= (corrupted != pad_token_id)  # don't corrupt padding
+    corrupted.masked_fill_(corrupt_mask, pad_token_id)
+    return corrupted
 
 class MBARTMTHead(torch.nn.Module, FromParams):
     def __init__(
@@ -38,11 +68,13 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         lora_dropout: float = 0.1,
         mt_weight: float = 0.1,
         mlp_projection: bool = False,
+        decoder_mask_ratio: float = 0.0,
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
         self.mt_weight = mt_weight
         self.mlp_projection = mlp_projection
+        self.decoder_mask_ratio = decoder_mask_ratio
         if mbart_model_name is not None and mbart_config_kwargs is not None:
             raise ValueError("Specify either 'mbart_model_name' or 'mbart_config_kwargs' not both")
         if mbart_model_name is None and mbart_config_kwargs is None:
@@ -166,7 +198,7 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         hidden_masked: List[torch.Tensor],
         tgt_input_ids: torch.LongTensor,
         tgt_attention_mask: Optional[torch.LongTensor] = None,
-        encoder_attention_mask: Optional[torch.LongTensor] = None,
+        attention_mask: Optional[torch.LongTensor] = None,
         **kwargs,
     ) -> Dict[str, torch.Tensor]:
         encoder_states = self.mix(hidden_masked) if self.use_layer_mix else hidden_masked[-1]
@@ -178,17 +210,23 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         labels = tgt_input_ids.clone()
         pad_id = self.mbart.config.pad_token_id
         labels[labels == pad_id] = -100
+        start_id = self.mbart.config.decoder_start_token_id
+        # Decoder inputs: shifted right, then corrupted during training
+        decoder_input_ids = shift_tokens_right(tgt_input_ids, pad_id, start_id)
+        if self.training and self.decoder_mask_ratio > 0:
+            decoder_input_ids = corrupt_decoder_inputs(
+                decoder_input_ids, pad_id, self.decoder_mask_ratio
+            )
 
         out = self.mbart(
             encoder_outputs=BaseModelOutput(last_hidden_state=encoder_states),
-            attention_mask=encoder_attention_mask,
+            attention_mask=attention_mask,
+            decoder_input_ids=decoder_input_ids,
             decoder_attention_mask=tgt_attention_mask,
             labels=labels,
             use_cache=False,
         )
         loss = out.loss*self.mt_weight
-        #logger.info(f"out before applied weight: {out.loss}")
-        #logger.info(f"out after applied weight: {loss}")
         self.perplexity.update(out.logits, labels)
         return {"loss": loss, "perplexity": self.perplexity.compute()}
 
