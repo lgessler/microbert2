@@ -28,15 +28,17 @@ class OpusMTHead(torch.nn.Module, FromParams):
             use_cross_attn_kv_lora: bool = False,
             use_lora: bool = False,
             lora_r: int = 8,
-            lora_alpha: int = 16, 
+            lora_alpha: int = 16,
             lora_dropout: float = 0.1,
             mt_weight: float = 0.1,
-            mlp_projection: bool = False
+            mlp_projection: bool = False,
+            decoder_mask_ratio: float = 0.3,
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
         self.mt_weight = mt_weight
         self.mlp_projection = mlp_projection
+        self.decoder_mask_ratio = decoder_mask_ratio
         if opus_model_name is not None:
             self.opus = AutoModelForSeq2SeqLM.from_pretrained("Helsinki-NLP/opus-mt-mul-en")  
             
@@ -125,9 +127,25 @@ class OpusMTHead(torch.nn.Module, FromParams):
         pad_id = self.opus.config.pad_token_id
         labels[labels == pad_id] = -100
 
+        # Build decoder_input_ids by shifting tgt right
+        decoder_start_id = self.opus.config.decoder_start_token_id
+        decoder_input_ids = tgt_input_ids.new_full(tgt_input_ids.shape, pad_id)
+        decoder_input_ids[:, 0] = decoder_start_id
+        decoder_input_ids[:, 1:] = tgt_input_ids[:, :-1]
+
+        # During training, randomly replace decoder inputs with <unk>
+        if self.training and self.decoder_mask_ratio > 0:
+            mask_prob = torch.rand(decoder_input_ids.shape, device=decoder_input_ids.device)
+            # Don't mask padding or the start token (position 0)
+            no_mask = (decoder_input_ids == pad_id)
+            no_mask[:, 0] = True
+            mask = (mask_prob < self.decoder_mask_ratio) & ~no_mask
+            decoder_input_ids[mask] = 3  # <unk> token id
+
         out = self.opus(
                 encoder_outputs = BaseModelOutput(last_hidden_state=encoder_states),
                 attention_mask = encoder_attention_mask,
+                decoder_input_ids = decoder_input_ids,
                 decoder_attention_mask = tgt_attention_mask,
                 labels = labels,
                 use_cache = False,
