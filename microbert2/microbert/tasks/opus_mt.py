@@ -1,12 +1,10 @@
-from json import encoder
 from logging import getLogger
 from typing import Any, Dict, List, Optional
 import csv
 from tango.common import FromParams, Lazy, det_hash
 from tango.common.det_hash import CustomDetHash
 import torch
-from peft import LoraConfig, get_peft_config, get_peft_model, TaskType
-from torch.jit import freeze
+from peft import LoraConfig, get_peft_model, TaskType
 from torch.nn.utils.rnn import pad_sequence
 from transformers.modeling_outputs import BaseModelOutput
 from microbert2.common import pool_embeddings
@@ -14,6 +12,7 @@ from microbert2.microbert.tasks.mbart_mt import read_parallel_tsv
 from microbert2.microbert.tasks.task import MicroBERTTask
 from torchmetrics import Perplexity
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from allennlp_light import ScalarMix
 
 logger = getLogger(__name__)
 def shift_tokens_right(
@@ -69,8 +68,7 @@ class OpusMTHead(torch.nn.Module, FromParams):
         self.mt_weight = mt_weight
         self.mlp_projection = mlp_projection
         self.decoder_mask_ratio = decoder_mask_ratio
-        if opus_model_name is not None:
-            self.opus = AutoModelForSeq2SeqLM.from_pretrained(opus_model_name)  
+        self.opus = AutoModelForSeq2SeqLM.from_pretrained(opus_model_name)  
             
         if use_lora:
             lora_config = LoraConfig(
@@ -145,7 +143,7 @@ class OpusMTHead(torch.nn.Module, FromParams):
             hidden_masked: List[torch.Tensor],
             tgt_input_ids: torch.LongTensor,
             tgt_attention_mask: Optional[torch.LongTensor] = None,
-            encoder_attention_mask: Optional[torch.LongTensor] = None,
+            attention_mask: Optional[torch.LongTensor] = None,
             **kwargs,
             ) -> Dict[str, torch.Tensor]:
         encoder_states = self.mix(hidden_masked) if self.use_layer_mix else hidden_masked[-1]
@@ -166,7 +164,7 @@ class OpusMTHead(torch.nn.Module, FromParams):
             )
         out = self.opus(
                 encoder_outputs = BaseModelOutput(last_hidden_state=encoder_states),
-                attention_mask = encoder_attention_mask,
+                attention_mask = attention_mask,
                 decoder_input_ids=decoder_input_ids,
                 decoder_attention_mask = tgt_attention_mask,
                 labels = labels,
