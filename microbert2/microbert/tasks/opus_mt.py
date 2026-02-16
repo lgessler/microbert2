@@ -259,7 +259,7 @@ class OpusMTTask(MicroBERTTask, CustomDetHash):
         elif key == "tgt_attention_mask":
             return pad_sequence(values, batch_first=True, padding_value=0)
         else:
-            raise ValueError(f"Unknow key: {key}")
+            raise ValueError(f"Unknown key: {key}")
 
     @property
     def inst_proportion(self) -> float:
