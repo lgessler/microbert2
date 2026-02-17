@@ -58,7 +58,7 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         embedding_dim: int,
         mbart_model_name: Optional[str] = None,
         mbart_config_kwargs: Optional[Dict[str,Any]] = None,
-        mbart_tokenizer: str = "facebook/mbart-large-50-many-to-one-mmt",
+        mbart_tokenizer: Optional[AutoTokenizer] = None,
         use_layer_mix: bool = False,
         freeze_decoder: bool = True,
         use_cross_attn_kv_lora: bool = False,
@@ -88,12 +88,11 @@ class MBARTMTHead(torch.nn.Module, FromParams):
             #Build small mbart from config
             from transformers import MBartConfig, MBartForConditionalGeneration
             # Pull special token ids from the tokenizer
-            tok = AutoTokenizer.from_pretrained(mbart_tokenizer, use_fast=False)
             config = MBartConfig(
-                pad_token_id=tok.pad_token_id,
-                bos_token_id=tok.bos_token_id,
-                eos_token_id=tok.eos_token_id,
-                decoder_start_token_id=tok.eos_token_id,
+                pad_token_id=mbart_tokenizer.pad_token_id,
+                bos_token_id=mbart_tokenizer.bos_token_id,
+                eos_token_id=mbart_tokenizer.eos_token_id,
+                decoder_start_token_id=mbart_tokenizer.lang_code_to_id[mbart_tokenizer.tgt_lang],
             )
             for key, value in mbart_config_kwargs.items():
                 if not hasattr(config,key):
@@ -315,7 +314,7 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
         return "mbart-mt"
 
     def construct_head(self, model):
-        self._head = self._head.construct(mbart_model_name=self._mbart_model_name, mbart_tokenizer=self._mbart_tokenizer)
+        self._head = self._head.construct(mbart_model_name=self._mbart_model_name, mbart_tokenizer=self._tokenizer)
         return self._head
 
     @property
