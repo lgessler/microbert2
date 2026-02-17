@@ -58,6 +58,7 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         embedding_dim: int,
         mbart_model_name: Optional[str] = None,
         mbart_config_kwargs: Optional[Dict[str,Any]] = None,
+        mbart_tokenizer: str = "facebook/mbart-large-50-many-to-one-mmt",
         use_layer_mix: bool = False,
         freeze_decoder: bool = True,
         use_cross_attn_kv_lora: bool = False,
@@ -86,7 +87,14 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         if mbart_config_kwargs is not None:
             #Build small mbart from config
             from transformers import MBartConfig, MBartForConditionalGeneration
-            config = MBartConfig()
+            # Pull special token ids from the tokenizer
+            tok = AutoTokenizer.from_pretrained(mbart_tokenizer, use_fast=False)
+            config = MBartConfig(
+                pad_token_id=tok.pad_token_id,
+                bos_token_id=tok.bos_token_id,
+                eos_token_id=tok.eos_token_id,
+                decoder_start_token_id=tok.eos_token_id,
+            )
             for key, value in mbart_config_kwargs.items():
                 if not hasattr(config,key):
                     raise ValueError(f"MBartConfig has no attribute {key}")
@@ -307,7 +315,7 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
         return "mbart-mt"
 
     def construct_head(self, model):
-        self._head = self._head.construct(mbart_model_name=self._mbart_model_name)
+        self._head = self._head.construct(mbart_model_name=self._mbart_model_name, mbart_tokenizer=self._mbart_tokenizer)
         return self._head
 
     @property
