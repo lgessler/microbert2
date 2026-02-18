@@ -172,6 +172,17 @@ class OpusMTHead(torch.nn.Module, FromParams):
                 )
         loss = out.loss*self.mt_weight
         self.perplexity.update(out.logits, labels)
+
+        if not self.training and not self._val_logged and self.tokenizer is not None:
+            valid = labels[0] != -100
+            preds = out.logits.argmax(-1)[0][valid]
+            gold = labels[0][valid]
+            pred_str = self.tokenizer.decode(preds, skip_special_tokens=True)
+            gold_str = self.tokenizer.decode(gold, skip_special_tokens=True)
+            logger.info(f"PRED: {pred_str}")
+            logger.info(f"GOLD: {gold_str}")
+            self._val_logged = True
+
         return {"loss":loss,"perplexity":self.perplexity.compute()}
 
     
@@ -275,3 +286,5 @@ class OpusMTTask(MicroBERTTask, CustomDetHash):
 
     def reset_metrics(self):
         self._head.perplexity.reset()
+        self._head._val_logged = False
+
