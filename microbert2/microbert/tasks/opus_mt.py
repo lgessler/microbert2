@@ -117,6 +117,9 @@ class OpusMTHead(torch.nn.Module, FromParams):
                         torch.nn.LayerNorm(d_model),
                         )
 
+        self.tokenizer = None
+        self._val_logged = False
+
         if use_lora:
             logger.info("parameter management handled by LoRA")
         elif use_cross_attn_kv_lora:
@@ -228,6 +231,7 @@ class OpusMTTask(MicroBERTTask, CustomDetHash):
 
     def construct_head(self, model) -> OpusMTHead:
         self._head = self._head.construct(opus_model_name=self._opus_model_name)
+        self._head.tokenizer = self._tokenizer
         return self._head
 
     @property
