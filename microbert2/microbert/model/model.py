@@ -158,12 +158,14 @@ class MicroBERTModel(Model):
         loss = torch.tensor(0.0, device=input_ids.device)
         if self.loss_scalars is not None:
             for i, s in enumerate(self.loss_scalars):
-                penalty = s.log()
-                coefficient = s**-2
-                loss += penalty + coefficient * losses[i]
+                if losses[i].requires_grad:
+                    penalty = s.log()
+                    coefficient = s**-2
+                    loss += penalty + coefficient * losses[i]
         else:
             for task_loss in losses:
-                loss += task_loss
+                if task_loss.requires_grad:
+                    loss += task_loss
 
         outputs["loss"] = loss
         return outputs
