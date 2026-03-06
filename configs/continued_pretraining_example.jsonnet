@@ -7,7 +7,7 @@
 
 // Model to continue pretraining from (HuggingFace ID or local path)
 # local base_model = "xlm-roberta-base";
-local base_model = "https://huggingface.co/jhu-clsp/mmBERT-base";
+local base_model = "jhu-clsp/mmBERT-base";
 
 // Plain-text corpus for continued pretraining (one sentence per line)
 local pretrain_text = "data/wo/train.txt";
