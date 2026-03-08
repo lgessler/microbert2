@@ -1,6 +1,7 @@
 from html import parser
 import json
 import logging
+import shutil
 from pathlib import Path
 from typing import Any, Dict, Optional
 import torch
@@ -74,6 +75,17 @@ class DependencyParsingEvaluator:
             from transformers import PreTrainedTokenizerBase
             if not hasattr(PreTrainedTokenizerBase, 'max_len'):
                 PreTrainedTokenizerBase.max_len = property(lambda self: self.model_max_length)
+
+            # Monkey-patch diaparser BertField to always use FieldVocab (which has
+            # unk fallback) instead of a plain dict from tokenizer.get_vocab().
+            # Without this, OOV subword pieces crash with KeyError.
+            from diaparser.utils.field import BertField, FieldVocab
+            _orig_bert_field_init = BertField.__init__
+            def _patched_bert_field_init(self, name, tokenizer, **kwargs):
+                _orig_bert_field_init(self, name, tokenizer, **kwargs)
+                if isinstance(self.vocab, dict) and not isinstance(self.vocab, FieldVocab):
+                    self.vocab = FieldVocab(tokenizer.unk_token_id, self.vocab)
+            BertField.__init__ = _patched_bert_field_init
 
             # Build parser first, then train
             # Step 1: Build the parser with configuration
@@ -175,6 +187,18 @@ class DependencyParsingEvaluator:
                     json.dump(results, f, indent=2)
                 logger.info(f"Results saved to {results_json}")
 
+            # Clean up model artifacts to save disk space (keep results.json)
+            logger.info(f"Cleaning up model artifacts in {save_path}")
+            results_path = Path(save_path) / "results.json"
+            for item in Path(save_path).iterdir():
+                if item == results_path:
+                    continue
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
+            logger.info("Model artifacts cleaned up, results.json preserved")
+
             return results
 
         except Exception as e:
@@ -191,7 +215,7 @@ class EvaluateDependencyParsing(Step):
     """
 
     DETERMINISTIC = True
-    CACHEABLE = True
+    CACHEABLE = False
 
     def run(
         self,
