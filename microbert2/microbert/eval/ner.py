@@ -1,5 +1,6 @@
 import json
 import logging
+import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -257,7 +258,7 @@ class EvaluateNER(Step):
     """
 
     DETERMINISTIC = True
-    CACHEABLE = True
+    CACHEABLE = False
 
     def run(
         self,
@@ -407,6 +408,13 @@ class EvaluateNER(Step):
 
         self.logger.info(f"Test results: {results}")
 
+        # Always save results.json to save_path
+        results_path = Path(save_path) / "results.json"
+        self.logger.info(f"Saving results to {results_path}")
+        results_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(results_path, 'w') as f:
+            json.dump(results, f, indent=2)
+
         # Save predictions if requested
         if predictions_output:
             self.logger.info(f"Saving predictions to {predictions_output}")
@@ -456,5 +464,17 @@ class EvaluateNER(Step):
             with open(results_json, 'w') as f:
                 json.dump(results, f, indent=2)
             self.logger.info(f"Results saved to {results_json}")
+
+        # Clean up model artifacts to save disk space (keep results.json)
+        self.logger.info(f"Cleaning up model artifacts in {save_path}")
+        results_path = Path(save_path) / "results.json"
+        for item in Path(save_path).iterdir():
+            if item == results_path:
+                continue
+            if item.is_dir():
+                shutil.rmtree(item)
+            else:
+                item.unlink()
+        self.logger.info("Model artifacts cleaned up, results.json preserved")
 
         return results
