@@ -1,4 +1,7 @@
+import json
 import logging
+import math
+from pathlib import Path
 from typing import Optional
 
 from tango import Step
@@ -165,6 +168,22 @@ class ContinuedMLMPretraining(Step):
 
         self.logger.info("Starting continued pretraining...")
         trainer.train()
+
+        # Evaluate and save results.json
+        results = {}
+        if eval_dataset is not None:
+            eval_output = trainer.evaluate()
+            eval_loss = eval_output["eval_loss"]
+            results = {
+                "eval_loss": eval_loss,
+                "perplexity": math.exp(eval_loss),
+            }
+            self.logger.info(f"Final eval results: {results}")
+        results_path = Path(output_path) / "results.json"
+        results_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(results_path, 'w') as f:
+            json.dump(results, f, indent=2)
+        self.logger.info(f"Results saved to {results_path}")
 
         self.logger.info(f"Saving base model to {output_path}")
         # For LoRA models, merge the adapter weights back into the base model

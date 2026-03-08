@@ -407,6 +407,13 @@ class EvaluateNER(Step):
 
         self.logger.info(f"Test results: {results}")
 
+        # Always save results.json to save_path
+        results_path = Path(save_path) / "results.json"
+        self.logger.info(f"Saving results to {results_path}")
+        results_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(results_path, 'w') as f:
+            json.dump(results, f, indent=2)
+
         # Save predictions if requested
         if predictions_output:
             self.logger.info(f"Saving predictions to {predictions_output}")

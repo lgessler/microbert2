@@ -149,6 +149,13 @@ class DependencyParsingEvaluator:
 
             logger.info(f"Best test results from training: {results}")
 
+            # Always save results.json to save_path
+            results_path = Path(save_path) / "results.json"
+            logger.info(f"Saving results to {results_path}")
+            results_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(results_path, 'w') as f:
+                json.dump(results, f, indent=2)
+
             # Save predictions if output path is provided
             if predictions_output:
                 logger.info(f"Saving predictions to: {predictions_output}")
