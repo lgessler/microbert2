@@ -249,7 +249,7 @@ class EvaluateDependencyParsing(Step):
         # Apply PyTorch 2.6+ compatibility patch for diaparser
         from diaparser.utils.config import Config
         from diaparser.utils.field import Field, BertField
-        from diaparser.utils.vocab import Vocab
+        from diaparser.utils.vocab import Vocab, FieldVocab
         from diaparser.utils.transform import CoNLL
         from diaparser.parsers import Parser
         from diaparser.parsers.biaffine_dependency import BiaffineDependencyParser
@@ -259,6 +259,7 @@ class EvaluateDependencyParsing(Step):
             Field,
             BertField,
             Vocab,
+            FieldVocab,
             CoNLL,
             Parser,
             BiaffineDependencyParser,
