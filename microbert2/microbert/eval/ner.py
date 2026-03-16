@@ -271,8 +271,9 @@ class EvaluateNER(Step):
         results_json: Optional[str] = None,
         batch_size: int = 16,
         learning_rate: float = 5e-5,
-        num_epochs: int = 3,
+        num_epochs: int = 100,
         trained_model: Optional[Any] = None,  # Optional dependency for Tango workflow
+        lora_config = None,
     ) -> Dict[str, Any]:
         """
         Fine-tune and evaluate a NER model.
@@ -353,6 +354,12 @@ class EvaluateNER(Step):
             id2label=id2label,
             label2id=label2id,
         )
+
+        if lora_config is not None:
+            from microbert2.microbert.eval.lora import apply_lora
+            from peft import TaskType
+            model = apply_lora(model, lora_config, task_type=TaskType.TOKEN_CLS)
+            self.logger.info("LoRA enabled")
 
         # Data collator
         data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
