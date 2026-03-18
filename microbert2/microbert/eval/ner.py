@@ -509,11 +509,15 @@ class EvaluateNER(Step):
                 json.dump(results, f, indent=2)
             self.logger.info(f"Results saved to {results_json}")
 
-        # Clean up model artifacts to save disk space (keep results.json)
+        # Clean up model artifacts to save disk space (keep results.json and predictions)
         self.logger.info(f"Cleaning up model artifacts in {save_path}")
-        results_path = Path(save_path) / "results.json"
+        keep_files = {Path(save_path) / "results.json"}
+        if dev_predictions_output and Path(dev_predictions_output).parent == Path(save_path):
+            keep_files.add(Path(dev_predictions_output))
+        if predictions_output and Path(predictions_output).parent == Path(save_path):
+            keep_files.add(Path(predictions_output))
         for item in Path(save_path).iterdir():
-            if item == results_path:
+            if item in keep_files:
                 continue
             if item.is_dir():
                 shutil.rmtree(item)
