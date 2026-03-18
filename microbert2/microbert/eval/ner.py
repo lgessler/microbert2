@@ -268,6 +268,7 @@ class EvaluateNER(Step):
         test_data_path: str,
         save_path: str,
         predictions_output: Optional[str] = None,
+        dev_predictions_output: Optional[str] = None,
         results_json: Optional[str] = None,
         batch_size: int = 16,
         learning_rate: float = 5e-5,
@@ -464,6 +465,41 @@ class EvaluateNER(Step):
                     sentence_idx += 1
 
             self.logger.info(f"Predictions saved to {predictions_output}")
+
+        # Save dev predictions if requested
+        if dev_predictions_output:
+            self.logger.info(f"Saving dev predictions to {dev_predictions_output}")
+            Path(dev_predictions_output).parent.mkdir(parents=True, exist_ok=True)
+
+            dev_predictions = trainer.predict(tokenized_dev)
+            dev_pred_labels = np.argmax(dev_predictions.predictions, axis=2)
+
+            with open(dev_predictions_output, 'w', encoding='utf-8') as f:
+                sentence_idx = 0
+                for tokens, _ in dev_data:
+                    tokenized = tokenizer(
+                        tokens,
+                        is_split_into_words=True,
+                        truncation=True,
+                        max_length=512,
+                    )
+                    word_ids = tokenized.word_ids()
+                    pred_ids = dev_pred_labels[sentence_idx]
+
+                    token_predictions = []
+                    previous_word_idx = None
+                    for word_idx, pred_id in zip(word_ids, pred_ids):
+                        if word_idx is not None and word_idx != previous_word_idx:
+                            token_predictions.append(id2label[pred_id])
+                            previous_word_idx = word_idx
+
+                    for token, pred_label in zip(tokens, token_predictions):
+                        f.write(f"{token} O O {pred_label}\n")
+                    f.write("\n")
+
+                    sentence_idx += 1
+
+            self.logger.info(f"Dev predictions saved to {dev_predictions_output}")
 
         # Save results to JSON if requested
         if results_json:
