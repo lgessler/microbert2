@@ -92,12 +92,17 @@ def read_split(path, pos_column):
     result = []
     with open(path, "r") as f:
         for sentence in conllu.parse_incr(f):
-            result.append(
-                {
-                    "tokens": [t["form"] for t in sentence if isinstance(t["id"], int)],
-                    "pos_label": [t[pos_column] for t in sentence if isinstance(t["id"], int)],
-                }
-            )
+            tokens = [t["form"] for t in sentence if isinstance(t["id"], int)]
+            pos_labels = [t[pos_column] for t in sentence if isinstance(t["id"], int)]
+
+            # Skip entire sentence if any POS tag is None or "_"
+            if all(label is not None and label != "_" for label in pos_labels):
+                result.append(
+                    {
+                        "tokens": tokens,
+                        "pos_label": pos_labels,
+                    }
+                )
     return result
 
 

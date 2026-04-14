@@ -1,53 +1,103 @@
 from logging import getLogger
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-import conllu
 import torch
-import torch.nn.functional as F
 import csv
 from allennlp_light import ScalarMix
-from allennlp_light.nn.util import sequence_cross_entropy_with_logits
 from tango.common import FromParams, Lazy, det_hash
 from tango.common.det_hash import CustomDetHash
 from torch.nn.utils.rnn import pad_sequence
-from torchmetrics import Accuracy
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from transformers.modeling_outputs import BaseModelOutput
 from torchmetrics import Perplexity
 from peft import LoraConfig, get_peft_model, TaskType
 
-from microbert2.common import pool_embeddings
 from microbert2.microbert.tasks.task import MicroBERTTask
 
 logger = getLogger(__name__)
+def shift_tokens_right(
+    input_ids: torch.Tensor, 
+    pad_token_id: int, 
+    decoder_start_token_id: int,
+) -> torch.Tensor:
+    """
+    Shift input ids one token to the right.
+    """
+    shifted = input_ids.new_full(input_ids.shape, pad_token_id)
+    shifted[:, 1:] = input_ids[:, :-1].clone()
+    shifted[:, 0] = decoder_start_token_id
+    shifted.masked_fill_(shifted == -100, pad_token_id)
+    return shifted
 
+
+def corrupt_decoder_inputs(
+    decoder_input_ids: torch.LongTensor,
+    pad_token_id: int,
+    corrupt_prob: float = 0.3,
+) -> torch.LongTensor:
+    """
+    Randomly replace tokens with pad to degrade LM signal.
+    Preserves position 0 (start token) and existing pad tokens.
+    """
+    corrupted = decoder_input_ids.clone()
+    corrupt_mask = torch.rand_like(corrupted, dtype=torch.float) < corrupt_prob
+    corrupt_mask[:, 0] = False  # preserve start token
+    corrupt_mask &= (corrupted != pad_token_id)  # don't corrupt padding
+    corrupted.masked_fill_(corrupt_mask, pad_token_id)
+    return corrupted
 
 class MBARTMTHead(torch.nn.Module, FromParams):
     def __init__(
         self,
         num_encoder_layers: int,
         embedding_dim: int,
-        mbart_model_name: str,
+        mbart_model_name: Optional[str] = None,
+        mbart_config_kwargs: Optional[Dict[str,Any]] = None,
+        mbart_tokenizer: Optional[AutoTokenizer] = None,
         use_layer_mix: bool = False,
         freeze_decoder: bool = True,
+        use_cross_attn_kv_lora: bool = False,
         train_last_k_decoder_layers: int = 0,
         use_lora: bool = False,
         lora_r: int = 8,
         lora_alpha: int = 16,
         lora_dropout: float = 0.1,
+        mt_weight: float = 0.1,
+        mlp_projection: bool = False,
+        decoder_mask_ratio: float = 0.0,
     ):
         super().__init__()
         self.use_layer_mix = use_layer_mix
+        self.mt_weight = mt_weight
+        self.mlp_projection = mlp_projection
+        self.decoder_mask_ratio = decoder_mask_ratio
+        if mbart_model_name is not None and mbart_config_kwargs is not None:
+            raise ValueError("Specify either 'mbart_model_name' or 'mbart_config_kwargs' not both")
+        if mbart_model_name is None and mbart_config_kwargs is None:
+            raise ValueError("Must specify either 'mbart_model_name' or 'mbart_config_kwargs'")
 
-        # Load MBART
-        self.mbart = AutoModelForSeq2SeqLM.from_pretrained(mbart_model_name)
+        if mbart_model_name is not None:
+            self.mbart = AutoModelForSeq2SeqLM.from_pretrained(mbart_model_name)
+
+        if mbart_config_kwargs is not None:
+            #Build small mbart from config
+            from transformers import MBartConfig, MBartForConditionalGeneration
+            # Pull special token ids from the tokenizer
+            config = MBartConfig(
+                pad_token_id=mbart_tokenizer.pad_token_id,
+                bos_token_id=mbart_tokenizer.bos_token_id,
+                eos_token_id=mbart_tokenizer.eos_token_id,
+                decoder_start_token_id=mbart_tokenizer.lang_code_to_id[mbart_tokenizer.tgt_lang],
+            )
+            for key, value in mbart_config_kwargs.items():
+                if not hasattr(config,key):
+                    raise ValueError(f"MBartConfig has no attribute {key}")
+                setattr(config,key,value)
+            self.mbart = MBartForConditionalGeneration(config)
+            logger.info(f"Initialized MBartForConditionalGeneration from config with {sum(p.numel() for p in self.mbart.parameters()):,} parameters")
 
         # Apply LoRA before deleting encoder (if using LoRA)
         if use_lora:
-            # First freeze the entire model
-            for p in self.mbart.parameters():
-                p.requires_grad = False
-
             # Apply LoRA to the full model (targeting decoder modules only)
             lora_config = LoraConfig(
                 r=lora_r,
@@ -58,7 +108,11 @@ class MBARTMTHead(torch.nn.Module, FromParams):
                 task_type=TaskType.SEQ_2_SEQ_LM,
             )
             self.mbart = get_peft_model(self.mbart, lora_config)
-            logger.info(f"LoRA applied to model: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
+            trainable_params = sum(p.numel() for p in self.mbart.parameters() if p.requires_grad)
+            total_params = sum(p.numel() for p in self.mbart.parameters())
+            logger.info(f"LoRA applied: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
+            logger.info(f"Trainable: {trainable_params:,} / {total_params:,} ({100*trainable_params/total_params:.2f}%)")
+
 
         # Now delete the encoder to save vram--we don't need it
         if use_lora:
@@ -69,6 +123,7 @@ class MBARTMTHead(torch.nn.Module, FromParams):
 
         d_model = self.mbart.config.d_model
         self.pad_token_id = self.mbart.config.pad_token_id
+        self.decoder_start_token_id = self.mbart.config.decoder_start_token_id
         # Note: ignore_index is -100 because this is what we're already transforming the pad token into
         # for our labels because MBartDecoder expects this value.
         self.perplexity = Perplexity(ignore_index=-100)
@@ -78,12 +133,47 @@ class MBARTMTHead(torch.nn.Module, FromParams):
             self.mix = ScalarMix(num_encoder_layers)
         self.proj = None
         if embedding_dim != d_model:
-            self.proj = torch.nn.Linear(embedding_dim, d_model)
-            logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
+            if not self.mlp_projection:
+                self.proj = torch.nn.Sequential(
+                            torch.nn.Linear(embedding_dim, d_model),
+                            torch.nn.LayerNorm(d_model),
+                            )
+
+                logger.info(f"Projection layer added: {embedding_dim} -> {d_model}")
+            else:
+                intermediate_dim = (embedding_dim+d_model) // 2
+                self.proj = torch.nn.Sequential(
+                        torch.nn.Linear(embedding_dim, intermediate_dim),
+                        torch.nn.GELU(),
+                        torch.nn.Dropout(0.1),
+                        torch.nn.Linear(intermediate_dim, d_model),
+                        torch.nn.LayerNorm(d_model),
+                        )
+                logger.info(f"MLP Projection layer added: {embedding_dim} -> {intermediate_dim} -> {d_model}")
         
         # When using LoRA, parameter freezing is handled by PEFT, so we skip manual freezing
         if use_lora:
             logger.info("Decoder parameter management handled by LoRA")
+        elif use_cross_attn_kv_lora:
+            # Apply LoRA specifically to cross-attention K,V projections
+            lora_config = LoraConfig(
+                r=lora_r,
+                lora_alpha=lora_alpha,
+                target_modules=["encoder_attn.k_proj", "encoder_attn.v_proj"],
+                lora_dropout=lora_dropout,
+                bias="none",
+                task_type=TaskType.SEQ_2_SEQ_LM,
+            )
+            self.mbart = get_peft_model(self.mbart, lora_config)
+            trainable_params = sum(p.numel() for p in self.mbart.parameters() if p.requires_grad)
+            total_params = sum(p.numel() for p in self.mbart.parameters())
+            logger.info(f"LoRA applied to cross-attention K,V projections: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
+            logger.info(f"Trainable: {trainable_params:,} / {total_params:,} ({100*trainable_params/total_params:.2f}%)")
+        elif mbart_config_kwargs is not None:
+            # Small randomized mbart: full finetuning on decoder
+            for p in self.mbart.model.decoder.parameters():
+                p.requires_grad = True
+            logger.info("Small randomized mbart: decoder fully trainable")
         elif freeze_decoder and train_last_k_decoder_layers == 0:
             for p in self.mbart.model.decoder.parameters():
                 p.requires_grad = False
@@ -109,7 +199,7 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         hidden_masked: List[torch.Tensor],
         tgt_input_ids: torch.LongTensor,
         tgt_attention_mask: Optional[torch.LongTensor] = None,
-        encoder_attention_mask: Optional[torch.LongTensor] = None,
+        attention_mask: Optional[torch.LongTensor] = None,
         **kwargs,
     ) -> Dict[str, torch.Tensor]:
         encoder_states = self.mix(hidden_masked) if self.use_layer_mix else hidden_masked[-1]
@@ -119,17 +209,23 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         # Set label at padded positions to -100 so they are ignored in the loss
         # See https://github.com/huggingface/transformers/blob/8ac2b916b042b1f78b75c9eb941c0f5d2cdd8e10/src/transformers/models/mbart/modeling_mbart.py#L1386-L1389
         labels = tgt_input_ids.clone()
-        pad_id = self.mbart.config.pad_token_id
-        labels[labels == pad_id] = -100
+        labels[labels == self.pad_token_id] = -100
+        # Decoder inputs: shifted right, then corrupted during training
+        decoder_input_ids = shift_tokens_right(tgt_input_ids, self.pad_token_id, self.decoder_start_token_id)
+        if self.training and self.decoder_mask_ratio > 0:
+            decoder_input_ids = corrupt_decoder_inputs(
+                decoder_input_ids, self.pad_token_id, self.decoder_mask_ratio
+            )
 
         out = self.mbart(
             encoder_outputs=BaseModelOutput(last_hidden_state=encoder_states),
-            attention_mask=encoder_attention_mask,
+            attention_mask=attention_mask,
+            decoder_input_ids=decoder_input_ids,
             decoder_attention_mask=tgt_attention_mask,
             labels=labels,
             use_cache=False,
         )
-        loss = out.loss
+        loss = out.loss*self.mt_weight
         self.perplexity.update(out.logits, labels)
         return {"loss": loss, "perplexity": self.perplexity.compute()}
 
@@ -165,7 +261,8 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
         test_mt_path: Optional[str] = None,
         delimiter: str = "\t",
         proportion: float = 0.1,
-        mbart_model_name: str = "facebook/mbart-large-50-many-to-one-mmt",
+        mbart_model_name: Optional[str] = None,
+        mbart_tokenizer: str = "facebook/mbart-large-50-many-to-one-mmt",
         tgt_lang_code: str = "en_XX",
         src_lang_code: str = "ar_AR",
         max_sequence_length: int = 512,
@@ -178,44 +275,67 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
         }
         self._proportion = proportion
         self._mbart_model_name = mbart_model_name
+        self._mbart_tokenizer = mbart_tokenizer
         self._tgt_lang_code = tgt_lang_code
 
-        self._tokenizer = AutoTokenizer.from_pretrained(mbart_model_name, use_fast=False)
+        self._tokenizer = AutoTokenizer.from_pretrained(mbart_tokenizer, use_fast=False)
         self._tokenizer.src_lang = src_lang_code
         self._tokenizer.tgt_lang = tgt_lang_code
         self._pad_token_id = self._tokenizer.pad_token_id
         self._max_sequence_length = max_sequence_length
+        self._encode_cache: Optional[Tuple[str, Tuple[torch.Tensor, torch.Tensor]]] = None
+
+        # Create deterministic hash string from constructor parameters only
+        self._hash_string = (
+            self.slug +
+            train_mt_path +
+            dev_mt_path +
+            (test_mt_path if test_mt_path else "") +
+            delimiter +
+            str(proportion) +
+            str(mbart_model_name) +
+            mbart_tokenizer +
+            tgt_lang_code +
+            src_lang_code +
+            str(max_sequence_length)
+        )
+
+    def det_hash_object(self) -> Any:
+        return det_hash(self._hash_string)
 
     @property
     def slug(self):
-        return "mt"
+        return "mbart-mt"
 
     def construct_head(self, model):
-        self._head = self._head.construct(mbart_model_name=self._mbart_model_name)
+        self._head = self._head.construct(mbart_model_name=self._mbart_model_name, mbart_tokenizer=self._tokenizer)
         return self._head
 
     @property
     def dataset(self):
         return self._dataset
 
-    def _encode_tgt(self, text: str):
+    def _encode_tgt(self, text: str) -> Tuple[torch.Tensor, torch.Tensor]:
+        if self._encode_cache is not None and self._encode_cache[0] == text:
+            return self._encode_cache[1]
         enc = self._tokenizer(
-            text,
+            text_target=text,
             max_length=self._max_sequence_length,
             truncation=True,
             add_special_tokens=True,
         )
-        return (
+        result = (
             torch.tensor(enc["input_ids"], dtype=torch.long),
             torch.tensor(enc["attention_mask"], dtype=torch.long),
         )
+        self._encode_cache = (text, result)
+        return result
 
-    def tensorify_data(self, key, value):
+    def tensorify_data(self, key: str, value: str) -> torch.Tensor:
+        ids, mask = self._encode_tgt(value)
         if key == "tgt_input_ids":
-            ids, _ = self._encode_tgt(value)
             return ids
         elif key == "tgt_attention_mask":
-            _, mask = self._encode_tgt(value)
             return mask
         else:
             raise ValueError(key)

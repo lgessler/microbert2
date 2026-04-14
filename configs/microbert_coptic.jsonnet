@@ -137,20 +137,56 @@ local mt_task = {
     dev_mt_path: dev_mt_path,
     test_mt_path: test_mt_path,
     mbart_model_name: "facebook/mbart-large-50-many-to-one-mmt",
+    mbart_tokenizer: "facebook/mbart-large-50-many-to-one-mmt",
     head: {
         embedding_dim: hidden_size,
         num_encoder_layers: num_layers,
         use_layer_mix: false,
         freeze_decoder: true,
-        train_last_k_decoder_layers: 0,
+        use_cross_attn_kv_lora: false,
+        mt_weight: 0.1,
+        mlp_projection: false,
+        // LoRA configuration
+        use_lora: false,
+        lora_r: 8,
+        lora_alpha: 16,
+        lora_dropout: 0.1,
+        // small mbart for ablation study. will need omit mbart_model_name and uncomment this below
+        /*
+         mbart_config_kwargs:{
+             vocab_size: 250054,  // Must match mbart-large-50 tokenizer vocab size
+             d_model: 96,
+             decoder_layers: 3,
+             decoder_ffn_dim: 192,
+             decoder_attention_heads: 8
+        }
+        */
+    },
+    tgt_lang_code: "en_XX",
+    src_lang_code: "ar_AR",
+    proportion: 0.2,
+    max_sequence_length: 128
+};
+local opus_mt_task = {
+    type: "microbert2.microbert.tasks.opus_mt.OPUSMTTask",
+    train_mt_path: train_mt_path,
+    dev_mt_path: dev_mt_path,
+    test_mt_path: test_mt_path,
+    opus_model_name: "Helsinki-NLP/opus-mt-mul-en",
+    head: {
+        embedding_dim: hidden_size,
+        num_encoder_layers: num_layers,
+        use_layer_mix: false,
+        freeze_decoder: true,
+        use_cross_attn_kv_lora: false,
+        mt_weight: 0.1,
+        mlp_projection: false,
         // LoRA configuration
         use_lora: false,
         lora_r: 8,
         lora_alpha: 16,
         lora_dropout: 0.1,
     },
-    tgt_lang_code: "en_XX",
-    src_lang_code: "ar_AR",
     proportion: 0.2,
     max_sequence_length: 128
 };
