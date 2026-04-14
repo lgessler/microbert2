@@ -1,18 +1,18 @@
 from logging import getLogger
-from typing import Any, Dict, List, Optional
-import csv
+from typing import Any, Dict, List, Optional, Tuple
+
+import torch
+from allennlp_light import ScalarMix
 from tango.common import FromParams, Lazy, det_hash
 from tango.common.det_hash import CustomDetHash
-import torch
-from peft import LoraConfig, get_peft_model, TaskType
 from torch.nn.utils.rnn import pad_sequence
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers.modeling_outputs import BaseModelOutput
-from microbert2.common import pool_embeddings
+from torchmetrics import Perplexity
+from peft import LoraConfig, get_peft_model, TaskType
+
 from microbert2.microbert.tasks.mbart_mt import read_parallel_tsv
 from microbert2.microbert.tasks.task import MicroBERTTask
-from torchmetrics import Perplexity
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-from allennlp_light import ScalarMix
 
 logger = getLogger(__name__)
 def shift_tokens_right(
@@ -80,10 +80,9 @@ class OpusMTHead(torch.nn.Module, FromParams):
                     task_type=TaskType.SEQ_2_SEQ_LM,
                     )
             self.opus = get_peft_model(self.opus, lora_config)
-            logger.info(f"LoRA applied to model: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
             trainable_params = sum(p.numel() for p in self.opus.parameters() if p.requires_grad)
             total_params = sum(p.numel() for p in self.opus.parameters())
-            logger.info(f"LoRA appiled: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
+            logger.info(f"LoRA applied: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
             logger.info(f"Trainable: {trainable_params:,} / {total_params:,} ({100*trainable_params/total_params:.2f}%)")
 
         #delete the encoder to save vram
@@ -96,6 +95,7 @@ class OpusMTHead(torch.nn.Module, FromParams):
         #model configuration
         d_model = self.opus.config.d_model
         self.pad_token_id = self.opus.config.pad_token_id
+        self.decoder_start_token_id = self.opus.config.decoder_start_token_id
         self.perplexity = Perplexity(ignore_index=-100)
 
         if self.use_layer_mix:
@@ -155,24 +155,21 @@ class OpusMTHead(torch.nn.Module, FromParams):
             encoder_states = self.proj(encoder_states)
 
         labels = tgt_input_ids.clone()
-        pad_id = self.opus.config.pad_token_id
-        labels[labels == pad_id] = -100
-        start_id = self.opus.config.decoder_start_token_id
-
+        labels[labels == self.pad_token_id] = -100
         # Decoder inputs: shifted right, then corrupted during training
-        decoder_input_ids = shift_tokens_right(tgt_input_ids, pad_id, start_id)
+        decoder_input_ids = shift_tokens_right(tgt_input_ids, self.pad_token_id, self.decoder_start_token_id)
         if self.training and self.decoder_mask_ratio > 0:
             decoder_input_ids = corrupt_decoder_inputs(
-                decoder_input_ids, pad_id, self.decoder_mask_ratio
+                decoder_input_ids, self.pad_token_id, self.decoder_mask_ratio
             )
         out = self.opus(
-                encoder_outputs = BaseModelOutput(last_hidden_state=encoder_states),
-                attention_mask = attention_mask,
-                decoder_input_ids=decoder_input_ids,
-                decoder_attention_mask = tgt_attention_mask,
-                labels = labels,
-                use_cache = False,
-                )
+            encoder_outputs=BaseModelOutput(last_hidden_state=encoder_states),
+            attention_mask=attention_mask,
+            decoder_input_ids=decoder_input_ids,
+            decoder_attention_mask=tgt_attention_mask,
+            labels=labels,
+            use_cache=False,
+        )
         loss = out.loss*self.mt_weight
         self.perplexity.update(out.logits, labels)
 
@@ -213,8 +210,9 @@ class OpusMTTask(MicroBERTTask, CustomDetHash):
         self._opus_model_name = opus_model_name
         self._max_sequence_length = max_sequence_length
 
-        self._tokenizer = AutoTokenizer.from_pretrained(opus_model_name, use_fast = False)
+        self._tokenizer = AutoTokenizer.from_pretrained(opus_model_name, use_fast=False)
         self._pad_token_id = self._tokenizer.pad_token_id
+        self._encode_cache: Optional[Tuple[str, Tuple[torch.Tensor, torch.Tensor]]] = None
 
         self._hash_string = (
             self.slug + train_mt_path + dev_mt_path + (test_mt_path or "") +
@@ -238,24 +236,27 @@ class OpusMTTask(MicroBERTTask, CustomDetHash):
     def dataset(self) -> dict:
         return self._dataset
 
-    def _encode_tgt(self,text:str):
+    def _encode_tgt(self, text: str) -> Tuple[torch.Tensor, torch.Tensor]:
+        if self._encode_cache is not None and self._encode_cache[0] == text:
+            return self._encode_cache[1]
         enc = self._tokenizer(
             text,
             max_length=self._max_sequence_length,
-            truncation = True,
+            truncation=True,
             add_special_tokens=True,
-            )
-        return (
-            torch.tensor(enc["input_ids"],dtype=torch.long),
-            torch.tensor(enc["attention_mask"],dtype=torch.long),
-            )
+        )
+        result = (
+            torch.tensor(enc["input_ids"], dtype=torch.long),
+            torch.tensor(enc["attention_mask"], dtype=torch.long),
+        )
+        self._encode_cache = (text, result)
+        return result
 
-    def tensorify_data(self,key,value):
+    def tensorify_data(self, key: str, value: str) -> torch.Tensor:
+        ids, mask = self._encode_tgt(value)
         if key == "tgt_input_ids":
-            ids,_ = self._encode_tgt(value)
             return ids
         elif key == "tgt_attention_mask":
-            _,mask = self._encode_tgt(value)
             return mask
         else:
             raise ValueError(key)

@@ -1,22 +1,17 @@
 from logging import getLogger
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-import conllu
 import torch
-import torch.nn.functional as F
 import csv
 from allennlp_light import ScalarMix
-from allennlp_light.nn.util import sequence_cross_entropy_with_logits
 from tango.common import FromParams, Lazy, det_hash
 from tango.common.det_hash import CustomDetHash
 from torch.nn.utils.rnn import pad_sequence
-from torchmetrics import Accuracy
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from transformers.modeling_outputs import BaseModelOutput
 from torchmetrics import Perplexity
 from peft import LoraConfig, get_peft_model, TaskType
 
-from microbert2.common import pool_embeddings
 from microbert2.microbert.tasks.task import MicroBERTTask
 
 logger = getLogger(__name__)
@@ -113,8 +108,6 @@ class MBARTMTHead(torch.nn.Module, FromParams):
                 task_type=TaskType.SEQ_2_SEQ_LM,
             )
             self.mbart = get_peft_model(self.mbart, lora_config)
-            logger.info(f"LoRA applied to model: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
-            # Verify LoRA was applied correctly
             trainable_params = sum(p.numel() for p in self.mbart.parameters() if p.requires_grad)
             total_params = sum(p.numel() for p in self.mbart.parameters())
             logger.info(f"LoRA applied: r={lora_r}, alpha={lora_alpha}, dropout={lora_dropout}")
@@ -130,6 +123,7 @@ class MBARTMTHead(torch.nn.Module, FromParams):
 
         d_model = self.mbart.config.d_model
         self.pad_token_id = self.mbart.config.pad_token_id
+        self.decoder_start_token_id = self.mbart.config.decoder_start_token_id
         # Note: ignore_index is -100 because this is what we're already transforming the pad token into
         # for our labels because MBartDecoder expects this value.
         self.perplexity = Perplexity(ignore_index=-100)
@@ -215,14 +209,12 @@ class MBARTMTHead(torch.nn.Module, FromParams):
         # Set label at padded positions to -100 so they are ignored in the loss
         # See https://github.com/huggingface/transformers/blob/8ac2b916b042b1f78b75c9eb941c0f5d2cdd8e10/src/transformers/models/mbart/modeling_mbart.py#L1386-L1389
         labels = tgt_input_ids.clone()
-        pad_id = self.mbart.config.pad_token_id
-        labels[labels == pad_id] = -100
-        start_id = self.mbart.config.decoder_start_token_id
+        labels[labels == self.pad_token_id] = -100
         # Decoder inputs: shifted right, then corrupted during training
-        decoder_input_ids = shift_tokens_right(tgt_input_ids, pad_id, start_id)
+        decoder_input_ids = shift_tokens_right(tgt_input_ids, self.pad_token_id, self.decoder_start_token_id)
         if self.training and self.decoder_mask_ratio > 0:
             decoder_input_ids = corrupt_decoder_inputs(
-                decoder_input_ids, pad_id, self.decoder_mask_ratio
+                decoder_input_ids, self.pad_token_id, self.decoder_mask_ratio
             )
 
         out = self.mbart(
@@ -291,6 +283,7 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
         self._tokenizer.tgt_lang = tgt_lang_code
         self._pad_token_id = self._tokenizer.pad_token_id
         self._max_sequence_length = max_sequence_length
+        self._encode_cache: Optional[Tuple[str, Tuple[torch.Tensor, torch.Tensor]]] = None
 
         # Create deterministic hash string from constructor parameters only
         self._hash_string = (
@@ -301,6 +294,7 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
             delimiter +
             str(proportion) +
             str(mbart_model_name) +
+            mbart_tokenizer +
             tgt_lang_code +
             src_lang_code +
             str(max_sequence_length)
@@ -321,24 +315,27 @@ class MBARTMTTask(MicroBERTTask, CustomDetHash):
     def dataset(self):
         return self._dataset
 
-    def _encode_tgt(self, text: str):
+    def _encode_tgt(self, text: str) -> Tuple[torch.Tensor, torch.Tensor]:
+        if self._encode_cache is not None and self._encode_cache[0] == text:
+            return self._encode_cache[1]
         enc = self._tokenizer(
-            text,
+            text_target=text,
             max_length=self._max_sequence_length,
             truncation=True,
             add_special_tokens=True,
         )
-        return (
+        result = (
             torch.tensor(enc["input_ids"], dtype=torch.long),
             torch.tensor(enc["attention_mask"], dtype=torch.long),
         )
+        self._encode_cache = (text, result)
+        return result
 
-    def tensorify_data(self, key, value):
+    def tensorify_data(self, key: str, value: str) -> torch.Tensor:
+        ids, mask = self._encode_tgt(value)
         if key == "tgt_input_ids":
-            ids, _ = self._encode_tgt(value)
             return ids
         elif key == "tgt_attention_mask":
-            _, mask = self._encode_tgt(value)
             return mask
         else:
             raise ValueError(key)
